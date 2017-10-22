@@ -1,0 +1,36 @@
+#!/usr/bin/perl
+
+# reads the "nodes" file and starts the servers
+# just a short cut to start up the node servers
+
+use strict;
+use warnings;
+
+open(my $FH, "<", "nodes")
+  or die "error: nodes file can't be opened";
+
+while (my $line = <$FH>) {
+  chomp $line;
+  my $port;
+  if ($line =~ /:(\d+)/){
+    $port = $1;
+  }
+  &makeServer($port);
+
+}
+
+# input: port
+# output: none
+sub makeServer{
+  my $port = shift @_;
+  print "Making server on port $port\n";
+  
+  
+  if (not -d "logs") {
+    mkdir "logs";
+  }
+
+
+  system("stdbuf -oL ./server $port > logs/log_$port 2>&1 &");
+}
+

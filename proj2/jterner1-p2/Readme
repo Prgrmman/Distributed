@@ -1,0 +1,15 @@
+Name: Jonathan Terner
+Date: Fri Oct  6 14:43:08 EDT 2017
+Class: CS 457
+Assignment: Programming project 2
+
+This project uses the following:
+  - python 2.7
+  - Apache thrift
+
+
+ Things to be noted:
+ - my code uses trace statements (aka print statements that can be turned off by a flag)
+    These should be disabled by default. (TRACE = False)
+ - the generated thrift code needs to be in the same directory as the "server" file to work as intended
+

@@ -1,0 +1,331 @@
+#!/usr/bin/env python
+
+#
+# This is my main server file for the DHT
+#
+
+#TODO
+'''
+- make it so that you can make rpc call to other nodes
+    (i.e. each server needs to act as a client)
+= Trying to figure out what ownership is exactly:
+    For write now, I am assuming that for a server to own a file,
+    it must be present on the server
+'''
+
+#NOTES
+'''
+- Don't use run_external_rpc to call a node itself
+- The write and read are invoked by a client, It is the client's job to call
+    the correct server if it actually wants the correct file. To do this, it must
+    call findSucc to find the correct node
+- If the server does not have a file, it will not ask around for it. Instead, it
+    will raise a SystemException that says that it does not have the file.
+
+
+'''
+import pdb
+import glob
+import sys
+import socket
+import hashlib
+sys.path.append('gen-py')
+sys.path.insert(0, glob.glob('/home/yaoliu/src_code/local/lib/lib/python2.7/site-packages')[0])
+
+
+from chord import FileStore
+from chord.ttypes import SystemException, RFileMetadata, RFile, NodeID
+
+
+from thrift.transport import TSocket
+from thrift.transport import TTransport
+from thrift.protocol import TBinaryProtocol
+from thrift.server import TServer
+
+### Globals
+TRACE = False
+def trace(string):
+    if TRACE == True:
+        print(string)
+
+class FileStoreHandler:
+    """ Attributes:
+        - _nodeID
+        - _finger_table: a list of NodeID objects
+        - _database: a dictionary that takes content hash strings to RFiles
+    """
+
+    def __init__(self, nodeID):
+        # init some internal state here
+        self._nodeID = nodeID
+        self._finger_table = None
+        self._database = {}
+
+
+
+    #RPC
+    def writeFile(self, rFile):
+        """ input:
+            - rFile (RFile)
+            output: none
+        """
+        meta = rFile.meta
+        key = meta.contentHash
+
+
+        # see if we own the file
+        trace("Checking if I own this file")
+        key_successor = self.findSucc(key)
+        if key_successor != self._nodeID:
+            raise SystemException("readFile: Error, file %s with owner %s is not owned by server"
+                    %(meta.filename,meta.owner))
+
+            # check if the file exists
+        trace("Checking to see if this file exsits")
+        if not key in self._database:
+            trace("I am writing a new file")
+            #create a new file, make it's version 0, add to database
+            rFile.meta.version = 0
+            self._database[key] = rFile
+        else:
+            #otherwise, replace the previous files contents and update version
+            trace("I am updating a file I that I have seen before")
+            old_file = self._database[key]
+            old_file.content = rFile.content
+            old_file.meta.version += 1
+            self._database[key] = old_file
+
+
+
+    #RPC
+    def readFile(self, filename, owner):
+        """ input:
+            - filename (string)
+            - owner (UserID/string)
+            output: RFile
+            returns an RFile if this server owns the file and it exists on the server
+        """
+
+        key = make_conent_hash(owner, filename)
+
+        # check if the this server owns the file
+        # to own a file means that we have to be that key's successor
+        key_successor = self.findSucc(key)
+        if key_successor != self._nodeID:
+            raise SystemException("readFile: Error, file %s with owner %s is not owned by server"
+                    %(filename,owner))
+
+        # check if the file exists
+        if not key in self._database:
+            raise SystemException("readFile: Error, file %s with owner %s was not found on server"
+                    %(filename,owner))
+        return self._database[key] 
+
+
+
+    #RPC
+    def setFingertable(self, node_list):
+        """ input: node_list (list<NodeID>)
+            output: none
+            Sets self._finger_table to a copy of the node_list
+        """
+        #NOTE the node_list is actually a preconstructed finger table
+
+        # do a copy just in case
+        self._finger_table = []
+        for node in node_list:
+            self._finger_table.append(node)
+
+
+    #RPC
+    def findSucc(self, key):
+        """ input: key (string)
+            output: NodeID
+            Finds the node successor of the key in the id space
+        """
+
+        node_next = self.findPred(key)
+        #TODO if node_next == self._nodeID, then don't do the external RPC maybe
+        if node_next == self._nodeID:
+            succ = self.getNodeSucc()
+        else:
+            succ = run_external_rpc(node_next, 'getNodeSucc')
+        trace("findSucc(%s) returns %s" %(str(key),str(succ)))
+        return succ
+
+
+    #RPC
+    #TODO test this. This is the big daddy
+    def findPred(self, key):
+        """ input: key (string)
+            ouput: NodeID
+            Returns the node the immediately precedes key in the id space
+        """
+        if self._finger_table is None:
+            raise SystemException("findPred: Error, node %s does does not have an initialized finger table"
+                    %(self._nodeID.id))
+
+
+        # check if I am the predecessor of the key
+        if in_range1(self._nodeID.id, key, self.getNodeSucc().id):
+            trace("I am the predecessor!")
+            return self._nodeID
+
+        #otherwise
+        next_node = self.get_preceeding_finger(key)
+        node_succ = run_external_rpc(next_node, 'findPred', [key])
+        return node_succ
+
+
+
+    #RPC
+    def getNodeSucc(self):
+        """ input: none
+            ouput: NodeID
+        """
+        # throw an error if we don't have a finger table yet
+        if self._finger_table is None:
+            raise SystemException("getNodeSucc: Error, node %s does does not have an initialized finger table"
+                    %(self._nodeID.id))
+        else:
+            trace("getNodeSucc() returns %s" %(str(self._finger_table[0])))
+            return self._finger_table[0]
+
+
+    def get_preceeding_finger(self, key):
+        """ input: key (string)
+            ouput: NodeID
+        Returns the NodeID from the finger table that directly most directly precedes
+            the given key to that node's particular knowledge.
+        """
+        for node in reversed(self._finger_table):
+            if in_range2(self._nodeID.id, node.id, key):
+                return node
+        return self.getNodeSucc()
+
+
+def usage():
+    msg = """ Usage: server PORT_NUMBER
+                runs a FileStore server on the specified PORT_NUMBER"""
+    print(msg)
+    sys.exit(1)
+
+
+###helper functions
+
+# makes a sha 256 hash of the server address
+def make_key(s):
+    sha256=hashlib.sha256()
+    sha256.update(s)
+    k=sha256.hexdigest()
+    return k
+
+# returns a hash string from <owner>:<filename>
+def make_conent_hash(owner, filename):
+    key = "%s:%s" %(owner, filename)
+    sha256 = hashlib.sha256()
+    sha256.update(key)
+    conent_hash = sha256.hexdigest()
+    return conent_hash
+
+
+#TODO write some units tests involving this function
+def in_range1(a,b,c):
+    """ returns true if b is in the range (a,c] """
+    if a<b and b <= c:
+        return True
+    if b < a and c <= a and b <= c:
+        return True
+    if a == c:
+        return True
+    if b > a and  b >= c and c <= a:
+        return True
+    return False
+
+def in_range2(a,b,c):
+    """ returns true if b in the range (a,c) """
+    if b > a and b < c:
+        return True
+    if b < a and c <= a and b < c:
+        return True
+    if b > a and b < c and c <= a:
+        return True
+    if b > a and b > c and c <= a:
+        return True 
+
+#TODO this meta function could use some testing
+def run_external_rpc(nodeID, func_name, args=[]):
+    """ input: NodeID, string, list of strings
+        output: return type of that RPC call
+    """
+    assert(isinstance(nodeID, NodeID))
+    client, transport = __client_from_id(nodeID)
+
+    eval_string = "%s.%s(" %("client", func_name)
+    # add the args
+    if len(args) > 0:
+        for i in range(0,len(args)-1):
+            eval_string += "args[%d]," %(i)
+        eval_string += "args[-1]"
+    eval_string += ")"
+
+
+    transport.open()
+    results = eval(eval_string)
+    transport.close()
+    return results
+
+# don't use this method outside of run_external_rpc
+def __client_from_id(nodeID):
+    """ input: nodeID (NodeID)
+        output: a tuple containing:
+           - a client object referring to the node specified by nodeID
+           - a transport layer object
+    """
+    assert(isinstance(nodeID, NodeID))
+
+    addr, port = (nodeID.ip, nodeID.port)
+
+    transport = TSocket.TSocket(addr, port)
+    transport = TTransport.TBufferedTransport(transport)
+    protocol = TBinaryProtocol.TBinaryProtocol(transport)
+    client = FileStore.Client(protocol)
+    return (client, transport)
+
+
+if __name__ == '__main__':
+
+    # parse command line args
+    if (len(sys.argv) < 2):
+        usage()
+
+    # grab the port number from the client
+    portnum = int(sys.argv[1])
+
+    # create the node's key
+    ip_addr = socket.gethostbyname(socket.gethostname())
+    s = "%s:%d" %(ip_addr, portnum)
+    key = make_key(s)
+
+    handler = FileStoreHandler(NodeID(key,ip_addr,portnum))
+    processor = FileStore.Processor(handler)
+
+    transport = TSocket.TServerSocket(port=portnum)
+
+    tfactory = TTransport.TBufferedTransportFactory()
+    pfactory = TBinaryProtocol.TBinaryProtocolFactory()
+
+    #   needed if a node does an rpc call on itself
+
+    server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
+    #server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
+
+    # You could do one of these for a multithreaded server
+    # server = TServer.TThreadedServer(
+    #     processor, transport, tfactory, pfactory)
+    # server = TServer.TThreadPoolServer(
+    #     processor, transport, tfactory, pfactory)
+
+    print('Starting the server...')
+    server.serve()
+    print('done.')

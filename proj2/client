@@ -1,0 +1,143 @@
+#!/usr/bin/env python
+
+#
+# This is a test program designed to test my DHT using RPC
+# NOTE: this program does not need to be submitted 
+
+import sys
+import glob
+import hashlib
+sys.path.append('gen-py')
+sys.path.insert(0, glob.glob('/home/yaoliu/src_code/local/lib/lib/python2.7/site-packages')[0])
+
+# TODO these two lines need to change
+from chord import FileStore
+from chord.ttypes import SystemException, RFileMetadata, RFile, NodeID
+# TODO these two lines are good
+from thrift import Thrift
+from thrift.transport import TSocket
+from thrift.transport import TTransport
+from thrift.protocol import TBinaryProtocol
+
+
+def main(port, addr):
+    # Make socket
+    # Listen on port specified by command line arg
+    transport = TSocket.TSocket(addr, port)
+
+    # Buffering is critical. Raw sockets are very slow
+    transport = TTransport.TBufferedTransport(transport)
+
+    # Wrap in a protocol
+    protocol = TBinaryProtocol.TBinaryProtocol(transport)
+
+    # Create a client to use the protocol encoder
+    client = FileStore.Client(protocol)
+
+
+    # Create an RFile and ask for where it lives 
+
+    # Connect!
+    transport.open()
+    key = make_key("Jon:hello.txt")
+    metadata = RFileMetadata("hello.txt", 35, "Jon", key)
+    rFile = RFile(metadata, "this is some text")
+
+    node_id = client.findSucc(key)
+    transport.close()
+
+
+
+    print("I made it here")
+    print("The port of the successor is %d" %(node_id.port))
+    print("I will now write a file to it")
+    run_external_rpc(node_id, 'writeFile', [rFile])
+    print("The file was written")
+    print("Now let us read the file back.")
+    rFile = run_external_rpc(node_id, 'readFile', ["hello.txt", "Jon"])
+    print("I got the file back!")
+    print("It has version number %d" %(rFile.meta.version))
+    print("The file has the following contents:")
+    print(rFile.content)
+    
+
+    print("\nLet's write some new data over")
+    rFile.content = "This is the new data"
+    run_external_rpc(node_id, 'writeFile', [rFile])
+    rFile = run_external_rpc(node_id, 'readFile', ["hello.txt", "Jon"])
+    print("I read back the file again")
+    print("It has version number %d" %(rFile.meta.version))
+    print("The file has the following contents:")
+    print(rFile.content)
+
+    #TODO: write a a file with new contents, and see how it changes
+    #   -i.e. how the contents and version change
+
+    
+
+
+
+# Helper functions
+
+def usage():
+    msg = """ Usage: client ADDR PORT_NUMBER
+                runs a FileStore client on the specified ADDR and PORT_NUMBER"""
+    print(msg)
+    sys.exit(1)
+
+def make_key(s):
+    sha256=hashlib.sha256()
+    sha256.update(s)
+    k=sha256.hexdigest()
+    return k
+
+#TODO this meta function could use some testing
+def run_external_rpc(nodeID, func_name, args=[]):
+    """ input: NodeID, string, list of strings
+        output: return type of that RPC call
+    """
+    assert(isinstance(nodeID, NodeID))
+    client, transport = __client_from_id(nodeID)
+
+    eval_string = "%s.%s(" %("client", func_name)
+    # add the args
+    if len(args) > 0:
+        for i in range(0,len(args)-1):
+            eval_string += "args[%d]," %(i)
+        eval_string += "args[-1]"
+    eval_string += ")"
+
+    
+    transport.open()
+    results = eval(eval_string)
+    transport.close()
+    return results
+
+# don't use this method outside of run_external_rpc
+def __client_from_id(nodeID):
+    """ input: nodeID (NodeID)
+        output: a tuple containing:
+           - a client object referring to the node specified by nodeID
+           - a transport layer object
+    """
+    assert(isinstance(nodeID, NodeID))
+
+    addr, port = (nodeID.ip, nodeID.port)
+
+    transport = TSocket.TSocket(addr, port)
+    transport = TTransport.TBufferedTransport(transport)
+    protocol = TBinaryProtocol.TBinaryProtocol(transport)
+    client = FileStore.Client(protocol)
+    return (client, transport)
+
+if __name__ == '__main__':
+    try:
+        # parse command line args
+        if (len(sys.argv) < 3):
+            usage()
+
+        addr = sys.argv[1]
+        port = int(sys.argv[2])
+        main(port, addr)
+    except Thrift.TException as tx:
+        print('%s' % tx.message)

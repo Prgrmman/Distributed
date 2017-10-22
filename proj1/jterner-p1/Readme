@@ -1,0 +1,34 @@
+Name: Jonathan Terner
+Bnumber: 00499082
+Date: Sept. 19 2017
+
+This project was designed and developed exclusively on the remote machines and was written
+python 3.
+
+python 3 is located on  /usr/bin/python3 on the remote machines, and should work out of
+the box.
+
+The main file is named server, and can be run directly without invoking python3. This is
+because it is an interpreter file starting with a "she-bang" that directs the OS to use
+the given interpreter to run the code.
+
+make sure that server is marked as an executable (chmod +x server).
+Then to run the server, simply type "./server"
+
+The implementation consists of a central python object called HTTPServer found in httpServer.py
+To run the server, a user simply creates a new HTTPServer object instance and then invokes
+its start method.
+
+Notes:
+
+=> The server response headers convert all time formats to GMT.
+
+=> A quick note on multithreading and access counting: Part of this design includes a
+    feature that records the number of times a resource has been accessed since the server
+    started. My times access counts start at 0 rather than 1. In terms of race conditions,
+    I believed that it was dangerous to create locks (or mutexes) around each element of
+    my access list, with the reason being that resources could be dynamically added to the
+    resource dictionary at any time. Thus, I create a lock around the entire structure.
+    I assure you that the server is indeed multithreaded; all one needs to do is slow down
+    the download rate for wget using two clients to see that the clients are served
+    concurrently

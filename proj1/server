@@ -1,0 +1,33 @@
+#!/usr/bin/python3
+
+'''
+This is the main file for my simple http server written in python
+
+'''
+
+###Imports
+import sys
+import os
+from httpServer import HTTPServer
+
+
+###Globals
+
+
+###Main
+def main(args):
+    """
+    Main function for the server
+    """
+    try:
+        server = HTTPServer()
+        #note: this transfers program control to the server
+        server.start()
+    except KeyboardInterrupt:
+        print("\nShutting down")
+        sys.exit(0)
+
+
+###Execute Main
+if __name__ == "__main__":
+    main(sys.argv)
