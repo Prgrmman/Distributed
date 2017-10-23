@@ -9,6 +9,9 @@ Here's and idea:
     I need some system to some driver code to read incoming messages on channels
     and then dispatch them to the appropriate handler code
 
+When first connecting to other branches:
+        - only open connections with branch ids greater than yours
+        - listen for connections with branch ids smaller than yours
 '''
 
 ###Imports
@@ -16,6 +19,7 @@ import sys
 sys.path.append('/home/phao3/protobuf/protobuf-3.4.0/python')
 import bank_pb2 as bank
 import threading
+from transport import send__message, read_message
 
 
 ###Definitions
@@ -40,23 +44,110 @@ class Account(object):
         self._lock.acquire()
         self._balance = new_balance
         self._lock.release()
+
+'''
+I want to separate the snapshot parts 
+Here is what I envision for this class:
+    There should be the following fields:
+        _channel_state: fifo queue representing money in transit
+        _recording: true of false
+        _socket: the underlying socket of the channel
+    There should be the following methods:
+        mark_empty(): marks the channel as empty and does not record
+        start_recording(): starts recording fifo style of everything that comes in
+        stop_recording(): turns off recording
+        clear(): clears the channel
+        add_transfer(money): adds money into the channel, but it only records it if 
+            recording is turned on
+        get_state(): returns a copy of the channel state
+
+Note: _channel_state is only concerned with incoming transfers
+        
+'''
+class Channel(object):
+    """ Doc string
+        
+    """
+    def __init__(self, socket, from_branch):
+        self._channel_state = []
+        self._recording = False
+        self._socket = socket
+        self._from_branch = from_branch # this is a string
+
+    def start_recording(self):
+        self._recording = True
+
+    def stop_recording(self):
+        self._recording = False
+
+    def clear(self):
+        self._channel_state = []
+
+    def mark_empty(self):
+        # empty channel and no recording
+        self.clear()
+        self.stop_recording()
+   
+    def add_transfer(self,money):
+        if self._recording:
+           self._channel_state.append(money)
+
+    def get_state(self):
+        return self._channel_state[:]
+
+
         
 ###Globals
 
+HOST_NAME = "remote.cs.binghamton.edu"
 account = None # type: Account object
+channels = []  # list of communication channels
+port_number = None
+branch_name = None
+socket = None # this is the global socket for a branch
 
 
 ###Functions
 
+def halt(msg):
+    print(msg)
+    sys.exit(1)
+
+
+def init_branch():
+    try:
+        socket.bind((HOST_NAME, port_number))
+    except socket.error:
+        halt("init_branch: can't bind socket")
+
+    #listen
+    try:
+        socket.listen(1)
+    except socket.error:
+        halt("init_branch: can't listen on socket")
+
+    # get that first init message
+    connection, client_address = socket.accept()
+    message = read_message(connection)
+    assert(type(message) == bank.init_branch)
+    print("we got a good message")
+    # make sure they send an init message
+
+
+    
+
+
+def receiver():
+    pass
+
+def sender():
+    print("Starting sender")
+
 #TODO not really sure if this is how it's going to go
 # meaning I'm not sure if I am going to include the functions below
 
-#TODO this is responsible for making connections
-def init_branch():
-    pass
 
-def tranfer():
-    pass
+
 
 
 ###Main
@@ -64,5 +155,20 @@ if __name__ == '__main__':
     #Init values
     account = Account()
     #Handle args
+    if len(sys.argv) < 2:
+        print("Usage: %s name port_num" %(sys.argv[0]))
+        sys.exit(1)
+
+    branch_name = sys.argv[1]
+    port_number = int(sys.argv[2])
+
+    socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    init_branch()
+
+    #sender_thread = threading.Thread(target=sender, args=[])
+    #sender_thread.start()
+
+    #receiver()
+
 
 
