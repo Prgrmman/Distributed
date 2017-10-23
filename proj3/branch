@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+
+
+# NOTE
+'''
+I'm using this section for notes
+Here's and idea:
+    I need some system to some driver code to read incoming messages on channels
+    and then dispatch them to the appropriate handler code
+
+'''
+
+###Imports
+import sys
+sys.path.append('/home/phao3/protobuf/protobuf-3.4.0/python')
+import bank_pb2 as bank
+import threading
+
+
+###Definitions
+class Account(object):
+    """ A wrapper around a mutex and an account balance
+        It's thread safe!!!
+        Attributes:
+            _balance: (int) set to zero
+            _lock: (Lock) used to lock around object
+    """
+    def __init__(self):
+        self._balance = 0
+        self._lock = threading.Lock()
+
+    def get_balance(self):
+        self._lock.acquire()
+        balance = self._balance
+        self._lock.release()
+        return balance
+    
+    def set_balance(self, new_balance):
+        self._lock.acquire()
+        self._balance = new_balance
+        self._lock.release()
+        
+###Globals
+
+account = None # type: Account object
+
+
+###Functions
+
+#TODO not really sure if this is how it's going to go
+# meaning I'm not sure if I am going to include the functions below
+
+#TODO this is responsible for making connections
+def init_branch():
+    pass
+
+def tranfer():
+    pass
+
+
+###Main
+if __name__ == '__main__':
+    #Init values
+    account = Account()
+    #Handle args
+
+

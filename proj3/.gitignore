@@ -2,3 +2,4 @@ __pycache__/
 *.swp
 notes.txt
 *.pyc
+bank_pb2.*
