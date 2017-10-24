@@ -31,7 +31,6 @@ def main(args):
 
 
     start_balance = balance // len(branches)
-    print(start_balance)
 
     for i in range(len(branches)):
         current_branch = branches[i]
@@ -40,9 +39,26 @@ def main(args):
 
 # init a branch with the other branches
 def init_branch(branch, start_balance, branches):
-    socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socket.connect((branch.ip, branch.port))
-    #TODO construct the init message and send it
+    
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.connect((branch.ip, branch.port))
+    except socket.error:
+        print("Can't connect to %s" %(branch.name))
+        sys.exit(1)
+
+    init_branch = bank.InitBranch()
+    init_branch.balance = start_balance
+
+    # TODO is this correct?
+    init_branch.all_branches.add()
+    init_branch.all_branches.extend(branches)
+
+    branch_message = bank.BranchMessage()
+    branch_message.init_branch.CopyFrom(init_branch)
+    transport.send__message(s, branch_message)
+    
+
 
 
 if __name__ == '__main__':

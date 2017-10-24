@@ -9,9 +9,9 @@ Here's and idea:
     I need some system to some driver code to read incoming messages on channels
     and then dispatch them to the appropriate handler code
 
-When first connecting to other branches:
-        - only open connections with branch ids greater than yours
+When first connecting to other branches, do the following in order:
         - listen for connections with branch ids smaller than yours
+        - only open connections with branch ids greater than yours
 '''
 
 ###Imports
@@ -20,6 +20,8 @@ sys.path.append('/home/phao3/protobuf/protobuf-3.4.0/python')
 import bank_pb2 as bank
 import threading
 from transport import send__message, read_message
+import socket
+import pdb
 
 
 ###Definitions
@@ -104,7 +106,7 @@ account = None # type: Account object
 channels = []  # list of communication channels
 port_number = None
 branch_name = None
-socket = None # this is the global socket for a branch
+global_socket = None # this is the global socket for a branch
 
 
 ###Functions
@@ -115,23 +117,26 @@ def halt(msg):
 
 
 def init_branch():
+    print("Waiting for init message")
     try:
-        socket.bind((HOST_NAME, port_number))
+        global_socket.bind((HOST_NAME, port_number))
     except socket.error:
         halt("init_branch: can't bind socket")
 
     #listen
     try:
-        socket.listen(1)
+        global_socket.listen(1)
     except socket.error:
         halt("init_branch: can't listen on socket")
 
     # get that first init message
-    connection, client_address = socket.accept()
+    connection, client_address = global_socket.accept()
     message = read_message(connection)
-    assert(type(message) == bank.init_branch)
+    assert(type(message) == bank.InitBranch)
     print("we got a good message")
     # make sure they send an init message
+    while True:
+        pass
 
 
     
@@ -162,7 +167,7 @@ if __name__ == '__main__':
     branch_name = sys.argv[1]
     port_number = int(sys.argv[2])
 
-    socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    global_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     init_branch()
 
     #sender_thread = threading.Thread(target=sender, args=[])

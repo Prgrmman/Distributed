@@ -17,13 +17,13 @@ This is a module provides a front end for sending google protobuf
 '''
 
 # header length is 4 bytes
-# TODO inspect the python struct module
+# the message should be of a BranchMessage type
 def send__message(socket, msg):
     """ socket: (Socket)
         msg: some Google protobuff object
         output: sends data over socket with fixed length header
     """
-    # msg is a string
+    assert(type(msg) == bank.BranchMessage)
     msg_text = msg.SerializeToString()
     msg_length = len(msg_text)
     msg_header = struct.pack(">I", msg_length)
@@ -37,15 +37,17 @@ def read_message(socket):
     """
 
     header = socket.recv(HEADER_SIZE)
-    msg_length = struct.unpack(">", header)[0]
+    msg_length = struct.unpack(">I", header)[0]
     msg_text = socket.recv(msg_length)
 
     generic_msg = bank.BranchMessage()
+    generic_msg.ParseFromString(msg_text)
 
     msg_field = generic_msg.WhichOneof("branch_message")
     # make sure that at least one of the fields is set
     assert(not msg_field is None)
     msg_object = eval("generic_msg." + msg_field)
+    print(msg_object)
     return msg_object
 
 

@@ -3,3 +3,4 @@ __pycache__/
 notes.txt
 *.pyc
 bank_pb2.*
+test
