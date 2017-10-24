@@ -13,6 +13,7 @@ When first connecting to other branches, do the following in order:
         - listen for connections with branch ids smaller than yours
         - only open connections with branch ids greater than yours
 '''
+#TODO write the algo to setup connection between branches
 
 ###Imports
 import sys
