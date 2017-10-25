@@ -29,13 +29,11 @@ def main(args):
             branch.port = int(matches.group(3).strip())
             branches.append(branch)
 
-
     start_balance = balance // len(branches)
 
     for i in range(len(branches)):
         current_branch = branches[i]
-        other_branches = branches[:i] + branches[i+1:]
-        init_branch(current_branch, start_balance, other_branches)
+        init_branch(current_branch, start_balance, branches)
 
 # init a branch with the other branches
 def init_branch(branch, start_balance, branches):
@@ -51,7 +49,7 @@ def init_branch(branch, start_balance, branches):
     init_branch.balance = start_balance
 
     # TODO is this correct?
-    init_branch.all_branches.add()
+    #init_branch.all_branches.add()
     init_branch.all_branches.extend(branches)
 
     branch_message = bank.BranchMessage()

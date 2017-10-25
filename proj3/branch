@@ -22,7 +22,8 @@ import bank_pb2 as bank
 import threading
 from transport import send__message, read_message
 import socket
-import pdb
+import pdb # for debugging, use pdb.set_trace()
+from select import select # for multiplexing
 
 
 ###Definitions
@@ -126,22 +127,75 @@ def init_branch():
 
     #listen
     try:
-        global_socket.listen(1)
+        global_socket.listen(3)
     except socket.error:
         halt("init_branch: can't listen on socket")
 
     # get that first init message
-    connection, client_address = global_socket.accept()
-    message = read_message(connection)
-    assert(type(message) == bank.InitBranch)
-    print("we got a good message")
-    # make sure they send an init message
-    while True:
-        pass
+    connection, _ = global_socket.accept()
+    init_msg = read_message(connection)
+    assert(type(init_msg) == bank.InitBranch)
+    branches = list(init_msg.all_branches)
+
+    listen_list = [] # the branches that we listen for a connection from
+    connect_list = [] # the branches that we actually initiate the connection to
 
 
+    # remove ourselves from the list and see how many branches are to the left and right
+    for i in range(len(branches)):
+        if branches[i].name == branch_name:
+            listen_list = branches[:i]
+            connect_list = branches[i+1:]
+            branches.pop(i)
+            break
+    # now setup connections to all other    
+
+    # listen first
+    for branch in listen_list:
+        channel = connect_to_branch(branch, 'passive')
+        channels.append(channel)
+
+    # then connect
+    for branch in connect_list:
+        channel = connect_to_branch(branch, 'active')
+        channels.append(channel)
+
+    # NOTE: don't forget about the global_socket that is getting messages
+    #   from the controller
+
+    print("We did it")
+
+
+
+
+def connect_to_branch(branch, mode):
+    """ branch is a bank.Branch object
+        mode is a string either 'passive' or 'active'
+        returns a new channel object
+    """
+    assert(type(branch) == bank.InitBranch.Branch)
+    ip = branch.ip
+    port = branch.port
+    name = branch.name
+    if mode == 'passive':
+        connection, _ = global_socket.accept()
+        return Channel(connection, name)
+
+
+    elif mode == 'active':
+        # NOTE connect even if we fail try again
+        # never give up, never surrender
+        while True:
+            try:
+                connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                connection.connect((ip,port))
+            except socket.error:
+                continue
+            break
+        return Channel(connection, name)
+    else:
+        raise ValueError("invalid mode :" + mode)
     
-
 
 def receiver():
     pass

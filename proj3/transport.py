@@ -47,7 +47,6 @@ def read_message(socket):
     # make sure that at least one of the fields is set
     assert(not msg_field is None)
     msg_object = eval("generic_msg." + msg_field)
-    print(msg_object)
     return msg_object
 
 
