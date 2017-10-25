@@ -24,6 +24,8 @@ from transport import send__message, read_message
 import socket
 import pdb # for debugging, use pdb.set_trace()
 from select import select # for multiplexing
+from time import sleep
+import random
 
 
 ###Definitions
@@ -39,15 +41,11 @@ class Account(object):
         self._lock = threading.Lock()
 
     def get_balance(self):
-        self._lock.acquire()
         balance = self._balance
-        self._lock.release()
         return balance
     
     def set_balance(self, new_balance):
-        self._lock.acquire()
         self._balance = new_balance
-        self._lock.release()
 
     def lock(self):
         self._lock.acquire()
@@ -58,17 +56,17 @@ class Account(object):
 I want to separate the snapshot parts 
 Here is what I envision for this class:
     There should be the following fields:
-        _channel_state: fifo queue representing money in transit
+        _channel_state: just an accumulator for money
         _recording: true of false
         _socket: the underlying socket of the channel
     There should be the following methods:
         mark_empty(): marks the channel as empty and does not record
-        start_recording(): starts recording fifo style of everything that comes in
+        start_recording(): starts recording everything that comes in
         stop_recording(): turns off recording
         clear(): clears the channel
         add_transfer(money): adds money into the channel, but it only records it if 
             recording is turned on
-        get_state(): returns a copy of the channel state
+        get_state(): returns the channel state
 
 Note: _channel_state is only concerned with incoming transfers
         
@@ -78,7 +76,7 @@ class Channel(object):
         
     """
     def __init__(self, socket, from_branch):
-        self._channel_state = []
+        self._channel_state = 0 # meaning empty
         self._recording = False
         self._socket = socket
         self._from_branch = from_branch # this is a string
@@ -90,7 +88,7 @@ class Channel(object):
         self._recording = False
 
     def clear(self):
-        self._channel_state = []
+        self._channel_state = 0
 
     def mark_empty(self):
         # empty channel and no recording
@@ -99,10 +97,10 @@ class Channel(object):
    
     def add_transfer(self,money):
         if self._recording:
-           self._channel_state.append(money)
+           self._channel_state += money
 
     def get_state(self):
-        return self._channel_state[:]
+        return self._channel_state
 
 
         
@@ -141,7 +139,9 @@ def init_branch():
     init_msg = read_message(connection)
 
     # set the balance
+    account.lock()
     account.set_balance(init_msg.balance)
+    account.unlock()
     assert(type(init_msg) == bank.InitBranch)
     branches = list(init_msg.all_branches)
 
@@ -172,6 +172,7 @@ def init_branch():
     #   from the controller
 
     print("We did it")
+    print(account.get_balance())
 
 
 
@@ -207,9 +208,38 @@ def connect_to_branch(branch, mode):
 
 def receiver():
     pass
-
+#
 def sender():
     print("Starting sender")
+
+
+    while True:
+        # select a random channel to send to
+        channel = channels[random.randint(0, len(channels) - 1)]
+
+        #lock the account
+        account.lock()
+
+        percentage = random.randint(1,5) * 0.01
+
+        balance = account.get_balance()
+        withdrawl_ammount = int(balance * percentage)
+        account.set_balance(balance - withdrawl_ammount)
+
+        # construct the message to send to our channel of choice
+        transfer = bank.Transfer()
+        transfer.money = withdrawl_ammount
+        branch_msg = bank.BranchMessage()
+        branch_msg.transfer.CopyFrom(transfer)
+        send__message(channel._socket, branch_msg)
+        print(withdrawl_ammount)
+        
+
+
+        #end of the code
+        account.unlock()
+        sleep_time = random.randint(0,5)
+        sleep(sleep_time)
 
 #TODO not really sure if this is how it's going to go
 # meaning I'm not sure if I am going to include the functions below
@@ -233,10 +263,10 @@ if __name__ == '__main__':
     global_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     init_branch()
 
-    #sender_thread = threading.Thread(target=sender, args=[])
-    #sender_thread.start()
+    sender_thread = threading.Thread(target=sender, args=[])
+    sender_thread.start()
 
-    #receiver()
+    receiver()
 
 
 
