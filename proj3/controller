@@ -6,6 +6,7 @@ import bank_pb2 as bank
 import re
 import socket
 import transport
+import random
 
 ### globals
 sockets = [] # this is a list of sockets to the various branches
@@ -38,8 +39,7 @@ def main(args):
         current_branch = branches[i]
         init_branch(current_branch, start_balance, branches)
 
-    while True:
-        pass
+    run_loop()
     
 
 # init a branch with the other branches
@@ -70,10 +70,19 @@ def run_loop():
         It will start snapshots every 15 seconds, and wait 5 seconds for them to complete
         It chooses a random branch to send the start message too
     """
-    pass
+    init_snapshot()
+    while True:
+        pass
+
 
 def init_snapshot():
-    pass
+    index = random.randint(0,len(sockets)-1)
+    s = sockets[index]
+    init_snapshot = bank.InitSnapshot()
+    init_snapshot.snapshot_id = 1
+    branch_message = bank.BranchMessage()
+    branch_message.init_snapshot.CopyFrom(init_snapshot)
+    transport.send__message(s, branch_message)
     
 
 

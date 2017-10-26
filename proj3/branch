@@ -116,6 +116,7 @@ channels = []  # list of communication channels
 port_number = None
 branch_name = None
 global_socket = None # this is the global socket for a branch
+contoller_socket = None
 
 
 ###Functions
@@ -127,6 +128,8 @@ def halt(msg):
 
 def init_branch():
     print("Waiting for init message")
+    global contoller_socket
+
     try:
         global_socket.bind((HOST_NAME, port_number))
     except socket.error:
@@ -139,8 +142,8 @@ def init_branch():
         halt("init_branch: can't listen on socket")
 
     # get that first init message
-    connection, _ = global_socket.accept()
-    init_msg = read_message(connection)
+    contoller_socket, _ = global_socket.accept()
+    init_msg = read_message(contoller_socket)
 
     # set the balance
     account.lock()
@@ -211,17 +214,21 @@ def connect_to_branch(branch, mode):
     
 
 def receiver():
-    #TODO 
     assert(type(global_socket) == socket.socket) # <- TODO take this code out
 
     while True:
         # added a time out so that the other thread cou
-        readable = select(channels + [global_socket],  [], [], 0.05)[0]
-        sleep(0.0001)
+        readable = select(channels + [contoller_socket],  [], [],)[0]
+
 
         for channel in readable:
-            if type(channel) == socket.socket:
-                print("There is data on the global socket?")
+            if type(channel) == socket.socket: # this means there is input on the contoller_socket 
+                print("There is data on the  contoller_socket?")
+                message = read_message(contoller_socket)
+                if type(message) == bank.InitSnapshot:
+                    print("%s Controller wants snapshot!" %(branch_name))
+                    # TODO add logic for starting the snapshot
+                
             else:
                 message = read_message(channel._socket)
                 # check if we got a Transfer message
@@ -232,12 +239,8 @@ def receiver():
                     account.set_balance(balance)
                     account.unlock()
                     print("%s got a %d" %(branch_name, message.money))
-                    
 
     
-
-    
-#
 def sender():
     print("Starting sender")
 
@@ -254,7 +257,6 @@ def sender():
         balance = account.get_balance()
         withdrawl_ammount = int(balance * percentage)
         account.set_balance(balance - withdrawl_ammount)
-        account.unlock()
 
         # construct the message to send to our channel of choice
         transfer = bank.Transfer()
@@ -266,15 +268,13 @@ def sender():
         send__message(channel._socket, branch_msg)
         #print(withdrawl_ammount)
         print("%s sent %s %d" %(branch_name, channel._from_branch, withdrawl_ammount)) 
+        account.unlock()
 
         
         #end of the code
         sleep_time = random.randint(0,5)
         sleep(sleep_time)
-        # TODO remove the break
 
-#TODO not really sure if this is how it's going to go
-# meaning I'm not sure if I am going to include the functions below
 
 
 
