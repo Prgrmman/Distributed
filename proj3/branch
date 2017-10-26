@@ -102,6 +102,10 @@ class Channel(object):
     def get_state(self):
         return self._channel_state
 
+    # wrapper method to be used by select
+    def fileno(self):
+        return self._socket.fileno()
+
 
         
 ###Globals
@@ -207,7 +211,32 @@ def connect_to_branch(branch, mode):
     
 
 def receiver():
-    pass
+    #TODO 
+    assert(type(global_socket) == socket.socket) # <- TODO take this code out
+
+    while True:
+        # added a time out so that the other thread cou
+        readable = select(channels + [global_socket],  [], [], 0.05)[0]
+        sleep(0.0001)
+
+        for channel in readable:
+            if type(channel) == socket.socket:
+                print("There is data on the global socket?")
+            else:
+                message = read_message(channel._socket)
+                # check if we got a Transfer message
+                if type(message) == bank.Transfer:
+                    account.lock()
+                    balance = account.get_balance()
+                    balance += message.money
+                    account.set_balance(balance)
+                    account.unlock()
+                    print("%s got a %d" %(branch_name, message.money))
+                    
+
+    
+
+    
 #
 def sender():
     print("Starting sender")
@@ -225,21 +254,24 @@ def sender():
         balance = account.get_balance()
         withdrawl_ammount = int(balance * percentage)
         account.set_balance(balance - withdrawl_ammount)
+        account.unlock()
 
         # construct the message to send to our channel of choice
         transfer = bank.Transfer()
         transfer.money = withdrawl_ammount
         branch_msg = bank.BranchMessage()
         branch_msg.transfer.CopyFrom(transfer)
+
+
         send__message(channel._socket, branch_msg)
-        print(withdrawl_ammount)
+        #print(withdrawl_ammount)
+        print("%s sent %s %d" %(branch_name, channel._from_branch, withdrawl_ammount)) 
+
         
-
-
         #end of the code
-        account.unlock()
         sleep_time = random.randint(0,5)
         sleep(sleep_time)
+        # TODO remove the break
 
 #TODO not really sure if this is how it's going to go
 # meaning I'm not sure if I am going to include the functions below
