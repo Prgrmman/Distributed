@@ -133,7 +133,7 @@ channels = []  # list of communication channels
 port_number = None
 branch_name = None
 global_socket = None # this is the global socket for a branch
-contoller_socket = None
+controll_channnel = None
 
 
 ###Functions
@@ -145,7 +145,8 @@ def halt(msg):
 
 def init_branch():
     print("Waiting for init message")
-    global contoller_socket
+    global controll_channnel
+    global channels
 
     try:
         global_socket.bind((HOST_NAME, port_number))
@@ -159,8 +160,9 @@ def init_branch():
         halt("init_branch: can't listen on socket")
 
     # get that first init message
-    contoller_socket, _ = global_socket.accept()
-    init_msg = read_message(contoller_socket)
+    connection, _ = global_socket.accept()
+    controll_channnel = Channel(connection, "controller")
+    init_msg = read_message(controll_channnel._socket)
 
     # set the balance
     account.lock()
@@ -192,6 +194,8 @@ def init_branch():
         channel = connect_to_branch(branch, 'active')
         channels.append(channel)
 
+    # TODO sort the channels just to be safe
+    channels = sorted(channels, key = lambda x: x._from_branch)
     # NOTE: don't forget about the global_socket that is getting messages
     #   from the controller
 
@@ -231,17 +235,16 @@ def connect_to_branch(branch, mode):
     
 
 def receiver():
-    assert(type(global_socket) == socket.socket) # <- TODO take this code out
 
     while True:
         # added a time out so that the other thread cou
-        readable = select(channels + [contoller_socket],  [], [],)[0]
+        readable = select(channels + [controll_channnel],  [], [],)[0]
 
 
         for channel in readable:
-            if type(channel) == socket.socket: # this means there is input on the contoller_socket 
-                print("There is data on the  contoller_socket?")
-                message = read_message(contoller_socket)
+            if channel._from_branch == "controller":  # we got a message from the controller
+                print("There is data on the  controll_channnel?")
+                message = read_message(controll_channnel._socket)
                 if type(message) == bank.InitSnapshot:
                     print("%s Controller wants snapshot!" %(branch_name))
                     # TODO add logic for starting the snapshot
