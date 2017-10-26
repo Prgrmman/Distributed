@@ -13,8 +13,25 @@ When first connecting to other branches, do the following in order:
         - listen for connections with branch ids smaller than yours
         - only open connections with branch ids greater than yours
 '''
-#TODO write the algo to setup connection between branches
 
+
+#TODO
+'''
+Write code logic for snapshots
+This is what I need:
+    - a way to build a snapshot the corresponds to exactly one snapshot ID:
+        - this snapshot object should have the balance and channel states
+        - hint: we need to build a bank.ReturnSnapshot message anyway
+
+    - a way to store the current snapshot id being processed as well as
+        if we have seen any marker messages before.
+        hint: the controller will not start a new snapshot until it has retrieved
+            all snapshots
+        - that means after the controller sends a ReturnSnapshot message, we
+            can reset our current snapshot
+
+
+'''
 ###Imports
 import sys
 sys.path.append('/home/phao3/protobuf/protobuf-3.4.0/python')
@@ -231,14 +248,20 @@ def receiver():
                 
             else:
                 message = read_message(channel._socket)
+
                 # check if we got a Transfer message
                 if type(message) == bank.Transfer:
                     account.lock()
                     balance = account.get_balance()
                     balance += message.money
+                    channel.add_transfer(message.money) # TODO verify this line
                     account.set_balance(balance)
                     account.unlock()
                     print("%s got a %d" %(branch_name, message.money))
+
+                elif type(message) == bank.Marker:
+                    pass
+                
 
     
 def sender():
