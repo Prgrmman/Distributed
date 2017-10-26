@@ -98,6 +98,10 @@ class Channel(object):
         self._socket = socket
         self._from_branch = from_branch # this is a string
 
+    # overload "==" comparison
+    def __eq__(self, other):
+        return self._from_branch == other._from_branch
+
     def start_recording(self):
         self._recording = True
 
@@ -133,7 +137,9 @@ channels = []  # list of communication channels
 port_number = None
 branch_name = None
 global_socket = None # this is the global socket for a branch
-controll_channnel = None
+controll_channnel = None # the channel used to access messages from the controller
+local_state = None # this is a bank.LocalSnapshot object
+
 
 
 ###Functions
@@ -235,6 +241,7 @@ def connect_to_branch(branch, mode):
     
 
 def receiver():
+    global local_state
 
     while True:
         # added a time out so that the other thread cou
@@ -245,10 +252,25 @@ def receiver():
             if channel._from_branch == "controller":  # we got a message from the controller
                 print("There is data on the  controll_channnel?")
                 message = read_message(controll_channnel._socket)
+
                 if type(message) == bank.InitSnapshot:
                     print("%s Controller wants snapshot!" %(branch_name))
                     # TODO add logic for starting the snapshot
-                
+                    local_state = bank.ReturnSnapshot.LocalSnapshot()
+                    local_state.snapshot_id = message.snapshot_id
+
+                    # record account state
+                    account.lock()
+                    local_state.balance = account.get_balance()
+                    account.unlock()
+
+                    for c in channels:
+                        c.start_recording()
+
+                elif type(message) == bank.RetrieveSnapshot:
+                    pass
+                    # TODO finish this
+
             else:
                 message = read_message(channel._socket)
 
@@ -257,13 +279,28 @@ def receiver():
                     account.lock()
                     balance = account.get_balance()
                     balance += message.money
-                    channel.add_transfer(message.money) # TODO verify this line
+                    channel.add_transfer(message.money) # TODO verify this line. It's supposed to track tranfers from a channel
                     account.set_balance(balance)
                     account.unlock()
                     print("%s got a %d" %(branch_name, message.money))
 
                 elif type(message) == bank.Marker:
-                    pass
+                    # If this is the first time we have seen a marker message
+                    if local_state == None:
+                        local_state = bank.ReturnSnapshot.LocalSnapshot()
+                        local_state.snapshot_id = message.snapshot_id
+
+                        #record account state
+                        account.lock()
+                        local_state.balance = account.get_balance()
+                        account.unlock()
+                        channel.mark_empty()
+                        #TODO send marker messages to other channels
+
+                    else:
+                        # TODO finish this
+                        pass
+                
                 
 
     
