@@ -39,6 +39,7 @@ def main(args):
         current_branch = branches[i]
         init_branch(current_branch, start_balance, branches)
 
+    send_start()
     run_loop()
     
 
@@ -64,6 +65,17 @@ def init_branch(branch, start_balance, branches):
     branch_message = bank.BranchMessage()
     branch_message.init_branch.CopyFrom(init_branch)
     transport.send__message(s, branch_message)
+
+
+# sends a dumby marker message to start on all sockets
+# NOTE the sent maker message is ignored
+def send_start():
+    for socket in sockets:
+        start_msg = bank.Marker()
+        start_msg.snapshot_id = 1
+        branch_message = bank.BranchMessage()
+        branch_message.marker.CopyFrom(start_msg)
+        transport.send__message(socket, branch_message)
 
 def run_loop():
     """ This is the automated controller loop.
