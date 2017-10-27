@@ -169,7 +169,9 @@ def init_branch():
     connection, _ = global_socket.accept()
     control_channel = Channel(connection, "controller")
     init_msg = read_message(control_channel._socket)
-    assert(type(init_msg) == bank.InitBranch)
+    if type(init_msg) != bank.InitBranch:
+        print(type(init_msg))
+        assert(type(init_msg) == bank.InitBranch)
 
     # set the balance
     account.lock()
@@ -324,6 +326,7 @@ def send_marker(channel, snapshot_id):
 def sender():
     print("Starting sender")
 
+    sleep(0.5) # give the sender a chance
 
     while True:
         # select a random channel to send to
