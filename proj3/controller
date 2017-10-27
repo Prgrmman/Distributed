@@ -10,6 +10,16 @@ import random
 
 ### globals
 sockets = [] # this is a list of sockets to the various branches
+# TODO instead of global sockets, have some wrapper so we can associate
+#   each socket with a branch and the other branches
+
+class Branch(object):
+    """ This class is only so that I can wrap a socket, a branch name,
+        and the channels that the branches should be using:
+            this is important when retrieving a snapshot
+    """
+    def __init__(self):
+        pass
 
 ### main body
 

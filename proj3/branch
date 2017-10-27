@@ -212,6 +212,20 @@ def init_branch():
     print("We did it")
     print(account.get_balance())
 
+# TODO add a better function for listening for connections
+def listen_for_conn(branches):
+    # hint, create a tuple as a key into a dictionary of branch objects
+    branch_dict = {}
+    channels = []
+    for branch in branches:
+        branch_dict[(branch.ip, branch.port)] = branch
+
+    for _ in len(branches):
+        connection, addr = global_socket.accept()
+        branch = branch_dict[addr]
+        name = branch.name
+        channels.append(Channel(connection, name))
+    return channels
 
 
 
