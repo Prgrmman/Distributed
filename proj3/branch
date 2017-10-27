@@ -200,7 +200,8 @@ def init_branch():
         channels.append(channel)
 
     # then connect
-    for branch in connect_list:
+    # NOTE I used reversed to ensure that branches connect in the right order
+    for branch in reversed(connect_list):
         channel = connect_to_branch(branch, 'active')
         channels.append(channel)
 
