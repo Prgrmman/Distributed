@@ -30,7 +30,7 @@ This is what I need:
         - that means after the controller sends a ReturnSnapshot message, we
             can reset our current snapshot
 
-
+Error: some how init_branch is ending up with a transfer message
 '''
 ###Imports
 import sys
@@ -137,7 +137,7 @@ channels = []  # list of communication channels
 port_number = None
 branch_name = None
 global_socket = None # this is the global socket for a branch
-controll_channnel = None # the channel used to access messages from the controller
+control_channel = None # the channel used to access messages from the controller
 local_state = None # this is a bank.LocalSnapshot object
 
 
@@ -151,7 +151,7 @@ def halt(msg):
 
 def init_branch():
     print("Waiting for init message")
-    global controll_channnel
+    global control_channel
     global channels
 
     try:
@@ -167,14 +167,14 @@ def init_branch():
 
     # get that first init message
     connection, _ = global_socket.accept()
-    controll_channnel = Channel(connection, "controller")
-    init_msg = read_message(controll_channnel._socket)
+    control_channel = Channel(connection, "controller")
+    init_msg = read_message(control_channel._socket)
+    assert(type(init_msg) == bank.InitBranch)
 
     # set the balance
     account.lock()
     account.set_balance(init_msg.balance)
     account.unlock()
-    assert(type(init_msg) == bank.InitBranch)
     branches = list(init_msg.all_branches)
 
     listen_list = [] # the branches that we listen for a connection from
@@ -245,13 +245,13 @@ def receiver():
 
     while True:
         # added a time out so that the other thread cou
-        readable = select(channels + [controll_channnel],  [], [],)[0]
+        readable = select(channels + [control_channel],  [], [],)[0]
 
 
         for channel in readable:
             if channel._from_branch == "controller":  # we got a message from the controller
-                print("There is data on the  controll_channnel?")
-                message = read_message(controll_channnel._socket)
+                print("There is data on the  control_channel?")
+                message = read_message(control_channel._socket)
 
                 if type(message) == bank.InitSnapshot:
                     print("%s Controller wants snapshot!" %(branch_name))
@@ -264,8 +264,13 @@ def receiver():
                     local_state.balance = account.get_balance()
                     account.unlock()
 
+                    # send out marker messages
+                    for c in channels:
+                        send_marker(c, message.snapshot_id)
+
                     for c in channels:
                         c.start_recording()
+
 
                 elif type(message) == bank.RetrieveSnapshot:
                     pass
@@ -287,6 +292,7 @@ def receiver():
                 elif type(message) == bank.Marker:
                     # If this is the first time we have seen a marker message
                     if local_state == None:
+                        print("%s starting snapshot" % (branch_name))
                         local_state = bank.ReturnSnapshot.LocalSnapshot()
                         local_state.snapshot_id = message.snapshot_id
 
@@ -295,14 +301,25 @@ def receiver():
                         local_state.balance = account.get_balance()
                         account.unlock()
                         channel.mark_empty()
-                        #TODO send marker messages to other channels
+
+                        #send marker messages to other channels
+                        other_channels = list(filter(lambda x: x != channel, channels)) # assert python 2.x
+                        for c in other_channels:
+                            send_marker(c, message.snapshot_id)
+
 
                     else:
-                        # TODO finish this
-                        pass
+                        # TODO finish this: turn off recording on that channel and add it to the state
+                        channel.stop_recording()
                 
-                
-
+# todo sends a marker message to a channel         
+def send_marker(channel, snapshot_id):
+    marker = bank.Marker()
+    marker.snapshot_id = snapshot_id
+    branch_msg = bank.BranchMessage()
+    branch_msg.marker.CopyFrom(marker)
+    send__message(channel._socket, branch_msg)
+    
     
 def sender():
     print("Starting sender")
@@ -337,10 +354,6 @@ def sender():
         #end of the code
         sleep_time = random.randint(0,5)
         sleep(sleep_time)
-
-
-
-
 
 
 ###Main
