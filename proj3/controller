@@ -151,11 +151,11 @@ def print_snapshot(channel):
     branch_names.pop(index)
 
     # TODO get the data back
-    snapshot = transport.read_message(channel.socket)
-    assert(type(snapshot) == bank.ReturnSnapshot)
+    return_snapshot = transport.read_message(channel.socket)
+    assert(type(return_snapshot) == bank.ReturnSnapshot)
     # TODO fix this fix this fix this now
-    local_snapsho
-    balance = snapshot.localbalance
+    snapshot = return_snapshot.local_snapshot
+    balance = snapshot.balance
     channel_states = list(snapshot.channel_state)
     
     output_string = "%s: %d" %(channel.from_branch, balance)
