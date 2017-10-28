@@ -104,6 +104,7 @@ class Channel(object):
 
     def start_recording(self):
         self._recording = True
+        self.clear()
 
     def stop_recording(self):
         self._recording = False
@@ -215,20 +216,6 @@ def init_branch():
 
 
 
-# TODO add a better function for listening for connections
-def listen_for_conn(branches):
-    # hint, create a tuple as a key into a dictionary of branch objects
-    branch_dict = {}
-    channels = []
-    for branch in branches:
-        branch_dict[(branch.ip, branch.port)] = branch
-
-    for _ in len(branches):
-        connection, addr = global_socket.accept()
-        branch = branch_dict[addr]
-        name = branch.name
-        channels.append(Channel(connection, name))
-    return channels
 
 
 
@@ -294,7 +281,13 @@ def receiver():
 
 
                 elif type(message) == bank.RetrieveSnapshot:
-                    pass
+                    local_state.channel_state.extend([c.get_state() for c in channels])
+                    return_snapshot = bank.ReturnSnapshot()
+                    return_snapshot.local_snapshot.CopyFrom(local_state)
+                    local_state = None
+                    branch_msg = bank.BranchMessage()
+                    branch_msg.return_snapshot.CopyFrom(return_snapshot)
+                    send__message(control_channel._socket, branch_msg)
                     # TODO finish this
 
             else:
@@ -327,8 +320,9 @@ def receiver():
                         other_channels = list(filter(lambda x: x != channel, channels)) # assert python 2.x
                         for c in other_channels:
                             send_marker(c, message.snapshot_id)
+                            c.start_recording()
 
-
+                    # we have seen the marker message before, so cut off
                     else:
                         # TODO finish this: turn off recording on that channel and add it to the state
                         channel.stop_recording()

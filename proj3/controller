@@ -7,23 +7,33 @@ import re
 import socket
 import transport
 import random
+from time import sleep
 
 ### globals
 sockets = [] # this is a list of sockets to the various branches
+branches = []
+channels = []
+snapshot_id = 0
+
 # TODO instead of global sockets, have some wrapper so we can associate
 #   each socket with a branch and the other branches
 
-class Branch(object):
+class Channel(object):
     """ This class is only so that I can wrap a socket, a branch name,
         and the channels that the branches should be using:
             this is important when retrieving a snapshot
+        Attributes:
+            socket: a socket object to communicate with the branch
+            from_branch: a string so we know which channel it's coming from
     """
-    def __init__(self):
-        pass
+    def __init__(self, socket, from_branch):
+        self.socket = socket
+        self.from_branch = from_branch
 
 ### main body
 
 def main(args):
+    global branches
     if len(args) < 2:
         print("Usage: %s initial_balance branch_file" %(args[0]))
         sys.exit(1)
@@ -31,7 +41,6 @@ def main(args):
     balance = int(args[1])
     branch_file = args[2]
 
-    branches = []
     regex = r'(.*?)\s(.*?)\s(.*)'
     with open(branch_file, "r") as file:
         for line in file:
@@ -42,6 +51,8 @@ def main(args):
             branch.ip = matches.group(2).strip()
             branch.port = int(matches.group(3).strip())
             branches.append(branch)
+
+    branches = sorted(branches, key = lambda x: x.name)
 
     start_balance = balance // len(branches)
 
@@ -64,6 +75,7 @@ def init_branch(branch, start_balance, branches):
         sys.exit(1)
 
     sockets.append(s)
+    channels.append(Channel(s, branch.name))
 
     init_branch = bank.InitBranch()
     init_branch.balance = start_balance
@@ -93,19 +105,70 @@ def run_loop():
         It chooses a random branch to send the start message too
     """
     init_snapshot()
+    sleep(5)
+    print_global_state() #<- TODO this might explode
     while True:
         pass
 
 
 def init_snapshot():
+    global snapshot_id
     index = random.randint(0,len(sockets)-1)
     s = sockets[index]
     init_snapshot = bank.InitSnapshot()
-    init_snapshot.snapshot_id = 1
+    snapshot_id += 1
+    init_snapshot.snapshot_id = snapshot_id
     branch_message = bank.BranchMessage()
     branch_message.init_snapshot.CopyFrom(init_snapshot)
     transport.send__message(s, branch_message)
+
+
+# gathers all of the local states from the other branches
+def print_global_state():
+    # start by sending a RetrieveSnapshot message
+    retrieve_message = bank.RetrieveSnapshot()
+    retrieve_message.snapshot_id = snapshot_id
+    branch_message = bank.BranchMessage()
+    branch_message.retrieve_snapshot.CopyFrom(retrieve_message)
+    # know send the message to everyone one
+    for socket in sockets:
+        transport.send__message(socket, branch_message)
+
+    sleep(5) # wait for the snapshot to finish
     
+    # grab the snapshot
+    print("snapshot_id: %d" %(snapshot_id))
+    for channel in channels:
+        print_snapshot(channel)
+
+    
+# used to reconstruct the channel states
+# the idea is that each branch sends its channels states over 
+#   in alphabetical order
+def print_snapshot(channel):
+    branch_names = [branch.name for branch in branches] # the channels that is has
+    index = branch_names.index(channel.from_branch)
+    branch_names.pop(index)
+
+    # TODO get the data back
+    snapshot = transport.read_message(channel.socket)
+    assert(type(snapshot) == bank.ReturnSnapshot)
+    # TODO fix this fix this fix this now
+    local_snapsho
+    balance = snapshot.localbalance
+    channel_states = list(snapshot.channel_state)
+    
+    output_string = "%s: %d" %(channel.from_branch, balance)
+
+    for i in range(len(branch_names)):
+        output_string += ", %s->%s: %d" %(branch_names[i], channel.from_branch, channel_states[i])
+
+    print(output_string)
+    
+
+    
+    
+
 
 
 
