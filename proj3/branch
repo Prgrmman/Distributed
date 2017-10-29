@@ -2,36 +2,6 @@
 
 
 
-# NOTE
-'''
-I'm using this section for notes
-Here's and idea:
-    I need some system to some driver code to read incoming messages on channels
-    and then dispatch them to the appropriate handler code
-
-When first connecting to other branches, do the following in order:
-        - listen for connections with branch ids smaller than yours
-        - only open connections with branch ids greater than yours
-'''
-
-
-#TODO
-'''
-Write code logic for snapshots
-This is what I need:
-    - a way to build a snapshot the corresponds to exactly one snapshot ID:
-        - this snapshot object should have the balance and channel states
-        - hint: we need to build a bank.ReturnSnapshot message anyway
-
-    - a way to store the current snapshot id being processed as well as
-        if we have seen any marker messages before.
-        hint: the controller will not start a new snapshot until it has retrieved
-            all snapshots
-        - that means after the controller sends a ReturnSnapshot message, we
-            can reset our current snapshot
-
-Error: some how init_branch is ending up with a transfer message
-'''
 ###Imports
 import sys
 sys.path.append('/home/phao3/protobuf/protobuf-3.4.0/python')
@@ -69,29 +39,10 @@ class Account(object):
 
     def unlock(self):
         self._lock.release()
-'''
-I want to separate the snapshot parts 
-Here is what I envision for this class:
-    There should be the following fields:
-        _channel_state: just an accumulator for money
-        _recording: true of false
-        _socket: the underlying socket of the channel
-    There should be the following methods:
-        mark_empty(): marks the channel as empty and does not record
-        start_recording(): starts recording everything that comes in
-        stop_recording(): turns off recording
-        clear(): clears the channel
-        add_transfer(money): adds money into the channel, but it only records it if 
-            recording is turned on
-        get_state(): returns the channel state
 
-Note: _channel_state is only concerned with incoming transfers
-        
-'''
+
+# my socket wrapper
 class Channel(object):
-    """ Doc string
-        
-    """
     def __init__(self, socket, from_branch):
         self._channel_state = 0 # meaning empty
         self._recording = False
@@ -151,7 +102,6 @@ def halt(msg):
 
 
 def init_branch():
-    print("Waiting for init message")
     global control_channel
     global channels
 
@@ -206,10 +156,7 @@ def init_branch():
         channel = connect_to_branch(branch, 'active')
         channels.append(channel)
 
-    # TODO sort the channels just to be safe
     channels = sorted(channels, key = lambda x: x._from_branch)
-    # NOTE: don't forget about the global_socket that is getting messages
-    #   from the controller
 
 
 
@@ -259,7 +206,6 @@ def receiver():
                 message = read_message(control_channel._socket)
 
                 if type(message) == bank.InitSnapshot:
-                    # TODO add logic for starting the snapshot
                     local_state = bank.ReturnSnapshot.LocalSnapshot()
                     local_state.snapshot_id = message.snapshot_id
 
@@ -284,7 +230,6 @@ def receiver():
                     branch_msg = bank.BranchMessage()
                     branch_msg.return_snapshot.CopyFrom(return_snapshot)
                     send__message(control_channel._socket, branch_msg)
-                    # TODO finish this
 
             else:
                 message = read_message(channel._socket)
@@ -294,10 +239,9 @@ def receiver():
                     account.lock()
                     balance = account.get_balance()
                     balance += message.money
-                    channel.add_transfer(message.money) # TODO verify this line. It's supposed to track tranfers from a channel
+                    channel.add_transfer(message.money) 
                     account.set_balance(balance)
                     account.unlock()
-                    #print("%s got a %d" %(branch_name, message.money))
 
                 elif type(message) == bank.Marker:
                     # If this is the first time we have seen a marker message
@@ -321,10 +265,8 @@ def receiver():
 
                     # we have seen the marker message before, so cut off
                     else:
-                        # TODO finish this: turn off recording on that channel and add it to the state
                         channel.stop_recording()
                 
-# todo sends a marker message to a channel         
 def send_marker(channel, snapshot_id):
     marker = bank.Marker()
     marker.snapshot_id = snapshot_id
@@ -334,8 +276,6 @@ def send_marker(channel, snapshot_id):
     
     
 def sender():
-    #print("Starting sender")
-
     while True:
         # select a random channel to send to
         channel = channels[random.randint(0, len(channels) - 1)]
@@ -355,12 +295,8 @@ def sender():
         branch_msg = bank.BranchMessage()
         branch_msg.transfer.CopyFrom(transfer)
 
-
         send__message(channel._socket, branch_msg)
-        #print(withdrawl_ammount)
-        #print("%s sent %s %d" %(branch_name, channel._from_branch, withdrawl_ammount)) 
         account.unlock()
-
         
         sleep_time = random.randint(0,5)
         sleep(sleep_time)

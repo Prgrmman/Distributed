@@ -15,8 +15,6 @@ branches = []
 channels = []
 snapshot_id = 0
 
-# TODO instead of global sockets, have some wrapper so we can associate
-#   each socket with a branch and the other branches
 
 class Channel(object):
     """ This class is only so that I can wrap a socket, a branch name,
@@ -60,7 +58,7 @@ def main(args):
         current_branch = branches[i]
         init_branch(current_branch, start_balance, branches)
 
-    send_start()
+    send_start() # tells the branches to connect
     run_loop()
     
 
@@ -80,8 +78,6 @@ def init_branch(branch, start_balance, branches):
     init_branch = bank.InitBranch()
     init_branch.balance = start_balance
 
-    # TODO is this correct?
-    #init_branch.all_branches.add()
     init_branch.all_branches.extend(branches)
 
     branch_message = bank.BranchMessage()
@@ -107,7 +103,7 @@ def run_loop():
     while True:
         init_snapshot()
         sleep(4)
-        print_global_state() #<- TODO this might explode
+        print_global_state() 
         sleep(1)
 
 
@@ -150,10 +146,9 @@ def print_snapshot(channel):
     index = branch_names.index(channel.from_branch)
     branch_names.pop(index)
 
-    # TODO get the data back
     return_snapshot = transport.read_message(channel.socket)
     assert(type(return_snapshot) == bank.ReturnSnapshot)
-    # TODO fix this fix this fix this now
+
     snapshot = return_snapshot.local_snapshot
     balance = snapshot.balance
     channel_states = list(snapshot.channel_state)
