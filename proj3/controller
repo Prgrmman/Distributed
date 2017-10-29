@@ -104,11 +104,11 @@ def run_loop():
         It will start snapshots every 15 seconds, and wait 5 seconds for them to complete
         It chooses a random branch to send the start message too
     """
-    init_snapshot()
-    sleep(5)
-    print_global_state() #<- TODO this might explode
     while True:
-        pass
+        init_snapshot()
+        sleep(4)
+        print_global_state() #<- TODO this might explode
+        sleep(1)
 
 
 def init_snapshot():
