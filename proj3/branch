@@ -306,21 +306,22 @@ def receiver():
                 elif type(message) == bank.Marker:
                     # If this is the first time we have seen a marker message
                     if local_state == None:
-                        print("%s starting snapshot" % (branch_name))
                         local_state = bank.ReturnSnapshot.LocalSnapshot()
                         local_state.snapshot_id = message.snapshot_id
 
                         #record account state
                         account.lock()
                         local_state.balance = account.get_balance()
-                        account.unlock()
                         channel.mark_empty()
 
                         #send marker messages to other channels
-                        other_channels = list(filter(lambda x: x != channel, channels)) # assert python 2.x
+                        other_channels = list(filter(lambda x: x != channel, channels))
                         for c in other_channels:
-                            send_marker(c, message.snapshot_id)
                             c.start_recording()
+                            send_marker(c, message.snapshot_id)
+
+                        send_marker(channel, message.snapshot_id)
+                        account.unlock()
 
                     # we have seen the marker message before, so cut off
                     else:
