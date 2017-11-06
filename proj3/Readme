@@ -1,0 +1,29 @@
+Name: Jonathan Terner
+
+
+The programming language I used is python.
+To compile all necessary code, simply type "make"
+
+My implementation is a little interesting.
+First off, the receiver and sender our on different threads. Each account has a
+locking mechanism to lock around the account balance between threads.
+
+I'm pretty proud of my initial startup code. First, the controller connects to to each
+branch. Once it does that, it sends a dummy marker message over to each branch, so that
+every branch must get the go-ahead before connecting to each other. This prevents a race
+condition of other branches racing the controller to connect to other branches. Next, the
+branches decide if they will wait for or actively connect to other branches. My method is
+a branch listens for branches that come before it, and connects to branches that come
+after it the order that the controller sends them over. Also, branches connect to each
+other in reverse order as to prevent race conditions with other branches. For example, with 
+branches 1,2,3,4, 1 connects to 4 3 2, 2 listens for 1 and connects to 4,3, 3 listens 
+to 1 2 and connects to 4, and 4 listens for 1 2 3.
+
+Message transport is implemented in transport.py. All messages are sent with a fixed
+length header to indicate their length. When messages are read, the are automatically
+unwrapped from the BranchMessage type and transformed to the appropriate object using
+python reflection.
+
+The Snapshot algorithm is implemented as the one in the slides.
+A new snapshot is printed about every 10 seconds
+
