@@ -1,7 +1,7 @@
 '''
 This file is for functions that need to be shared between clients and servers
 '''
-
+import sys
 
 class Node:
     def __init__(self, name, ip, port):
@@ -27,3 +27,9 @@ def read_node_file(file_name):
                 raise Exception("Bad file format")
             replica_list.append(Node(words[0], words[1], int(words[2])))
     return replica_list
+
+# halts program with optional message
+def halt(msg=None):
+    if msg:
+        print(msg)
+    sys.exit(1)

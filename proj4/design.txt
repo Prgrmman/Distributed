@@ -15,9 +15,6 @@ example invocation of server:
 $> ./server node_file {--hinted-handoff | --read-repair}
 
 
-example invocation of init
-$> ./init node_file {--hinted-handoff | --read-repair}
-
 An example of the format of node_file can be found in example_node_file
 
 ==================================================
@@ -36,3 +33,6 @@ How to handle node failure:
   
 Time stamps will produced by a call to time.time() and has type float:
   it is defined as number of seconds (decimal included) since the beginning of UNIX time
+
+It is the clients responsibility to start the servers on the machine that is indicated by
+the ip address in the node_file

@@ -8,12 +8,21 @@ sys.path.insert(0, glob.glob('/home/yaoliu/src_code/local/lib/lib/python2.7/site
 from store import KeyValueStore
 from store.ttypes import SystemException, Value
 
-from util import read_node_file
+from thrift.transport import TSocket
+from thrift.transport import TTransport
+from thrift.protocol import TBinaryProtocol
+from thrift.server import TServer
+
+from util import read_node_file, halt, Node
 
 
 ### Definitions
 
 class KeyValueStoreHandler:
+    """
+    This is the RPC class handler
+
+    """
     
     def __init__(self):
         pass
@@ -34,33 +43,61 @@ class KeyValueStoreHandler:
 
 
 ### Globals
-PORT_NUM = None # (int)
-REPLICA_NAME = None # (string)
+PORT_NUM = -1
+NODE_NAME = ""
+NODE_FILE = ""
+HINTED_HANDOFF = False
+READ_REPAIR = False
 
 
 ### Helper functions
 
 
+# halt program with optional message
 
 # prints out a usage message
 def usage(prog_name):
-    msg = "Usage: %s node_file {--hinted-handoff | --read-repair}" % (prog_name)
-    print(msg)
-    sys.exit(1)
+    msg = "Usage: %s node_name node_file {--hinted-handoff | --read-repair}" % (prog_name)
+    halt(msg)
+
 
 ###Main
 if __name__ == '__main__':
+
     args = sys.argv
-    if len(args) != 3:
+    if len(args) != 4:
         usage(args[0])
 
-    node_file = sys.argv[1]
+    NODE_NAME = args[1]
+    NODE_FILE = args[2]
+    if args[3] == "--hinted-handoff": 
+        HINTED_HANDOFF = True
+    elif args[3] == "--read-repair": 
+        READ_REPAIR = True
+    else:
+        halt("error, must give either --hinted-handoff or --read-repair")
+
+
+    node_list = read_node_file(NODE_FILE)
+
+    try:
+        my_node = filter(lambda x: x.name == NODE_NAME, node_list)[0]
+    except IndexError:
+        halt("no such node name <%s> in file <%s>" %(NODE_NAME, NODE_FILE))
+
+    print(my_node)
+    PORT_NUM = my_node.port
 
 
     handler = KeyValueStoreHandler()
     processor = KeyValueStore.Processor(handler)
-    node_list = read_node_file("example_node_file")
+    transport = TSocket.TServerSocket(port=PORT_NUM)
+    tfactory = TTransport.TBufferedTransportFactory()
+    pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
-    for node in node_list:
-        print(node)
-
+    #NOTE we are using a threaded server for now
+    server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
+    #server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
+    print("Starting the server")
+    server.serve()
+    
