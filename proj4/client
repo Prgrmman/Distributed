@@ -9,6 +9,20 @@ from store import KeyValueStore
 from store.ttypes import SystemException, Value
 
 
+
+
+
+
+
+# prints out a usage message
+def usage(prog_name):
+    msg = "Usage: %s node_file " % (prog_name)
+    print(msg)
+    sys.exit(1)
+
 ###Main
 if __name__ == '__main__':
-    pass
+    args = sys.argv
+    if len(args) != 3:
+        usage(args[0])
+

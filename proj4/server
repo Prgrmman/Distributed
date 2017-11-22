@@ -8,7 +8,59 @@ sys.path.insert(0, glob.glob('/home/yaoliu/src_code/local/lib/lib/python2.7/site
 from store import KeyValueStore
 from store.ttypes import SystemException, Value
 
+from util import read_node_file
+
+
+### Definitions
+
+class KeyValueStoreHandler:
+    
+    def __init__(self):
+        pass
+
+    '''
+    RPC calls:
+        put_key
+        get_key
+    '''
+    def get_key(level):
+        print("get key!")
+
+    def put_key(value, level):
+        print("put_key!")
+
+    def heartbeat(from_replica):
+        print("got heartbeat from %s" %(from_replica))
+
+
+### Globals
+PORT_NUM = None # (int)
+REPLICA_NAME = None # (string)
+
+
+### Helper functions
+
+
+
+# prints out a usage message
+def usage(prog_name):
+    msg = "Usage: %s node_file {--hinted-handoff | --read-repair}" % (prog_name)
+    print(msg)
+    sys.exit(1)
 
 ###Main
 if __name__ == '__main__':
-    pass
+    args = sys.argv
+    if len(args) != 3:
+        usage(args[0])
+
+    node_file = sys.argv[1]
+
+
+    handler = KeyValueStoreHandler()
+    processor = KeyValueStore.Processor(handler)
+    node_list = read_node_file("example_node_file")
+
+    for node in node_list:
+        print(node)
+

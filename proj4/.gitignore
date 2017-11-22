@@ -1,3 +1,4 @@
 # ignore our custom nodes file
 nodes 
 gen-py/
+*.pyc
