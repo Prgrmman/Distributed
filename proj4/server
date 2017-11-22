@@ -13,7 +13,7 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from util import read_node_file, halt, Node
+from util import read_node_file, halt
 
 
 ### Definitions
@@ -52,6 +52,13 @@ READ_REPAIR = False
 
 ### Helper functions
 
+def test_connection():
+    try:
+        transport = TSocket.TSocket(my_node.ip, my_node.port)
+        transport.open()
+    except:
+        halt("whoops")
+
 
 # halt program with optional message
 
@@ -60,11 +67,10 @@ def usage(prog_name):
     msg = "Usage: %s node_name node_file {--hinted-handoff | --read-repair}" % (prog_name)
     halt(msg)
 
+###MAIN
+def main(args):
+    global NODE_NAME, NODE_FILE
 
-###Main
-if __name__ == '__main__':
-
-    args = sys.argv
     if len(args) != 4:
         usage(args[0])
 
@@ -88,7 +94,6 @@ if __name__ == '__main__':
     print(my_node)
     PORT_NUM = my_node.port
 
-
     handler = KeyValueStoreHandler()
     processor = KeyValueStore.Processor(handler)
     transport = TSocket.TServerSocket(port=PORT_NUM)
@@ -98,6 +103,15 @@ if __name__ == '__main__':
     #NOTE we are using a threaded server for now
     server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
     #server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
+
+    # TODO do replaying of log here before starting the server
+
+    #test_connection()
+
     print("Starting the server")
     server.serve()
+
+if __name__ == '__main__':
+    main(sys.argv)
+
     

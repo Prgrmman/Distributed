@@ -26,7 +26,9 @@ service KeyValueStore {
 
   // RPC used between replicas.
   // tells a replica that it is alive again
-  void heartbeat(1: string replica_name),
+  void ping(1: string replica_name),
+
+
 }
 
 

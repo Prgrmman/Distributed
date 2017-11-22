@@ -21,15 +21,17 @@ An example of the format of node_file can be found in example_node_file
 We will be using Apache thrift for this project
 
 How to handle node failure:
-  I have included a heartbeat rpc call to the KeyValueStore service. All nodes start as
+  I have included a ping rpc call to the KeyValueStore service. All nodes start as
   active. When an RPC between replicas fails, that node will be marked as down. When that
   node comes back up, it will look for its unique log file, replay that log file to get
-  back to where it was, and then send a heartbeat call to all other replicas. Upon
-  receiving a heartbeat, it will contain the name of that replica that is alive again. The
+  back to where it was, and then send a ping call to all other replicas. Upon
+  receiving a ping, it will contain the name of the replica that is alive again. The
   receiver will mark that replica as being alive again.
-
-  If a replica has any RPC call that fails (including a heartbeat), that node is
-  considered dead until the next heartbeat.
+ 
+  When a server first starts up, it checks for the existence of it's corresponding log
+  file. If that file exists, we assume failure, and replay the log. After that, we try to
+  connect to everyone else. The client will run a "start" command initially to tell the
+  nodes to ping each other.
   
 Time stamps will produced by a call to time.time() and has type float:
   it is defined as number of seconds (decimal included) since the beginning of UNIX time
