@@ -1,0 +1,38 @@
+------------------------------| Design docs for project 4 |------------------------------
+
+Consider this file like a giant scratch space
+
+So far, I have included the follow executable files
+
+> client (for the client duh)
+> server (server executable)
+> init   (a wrapper script to launch all the servers at once)
+
+example invocation of client:
+$> ./client node_file 
+
+example invocation of server:
+$> ./server node_file {--hinted-handoff | --read-repair}
+
+
+example invocation of init
+$> ./init node_file {--hinted-handoff | --read-repair}
+
+An example of the format of node_file can be found in example_node_file
+
+==================================================
+We will be using Apache thrift for this project
+
+How to handle node failure:
+  I have included a heartbeat rpc call to the KeyValueStore service. All nodes start as
+  active. When an RPC between replicas fails, that node will be marked as down. When that
+  node comes back up, it will look for its unique log file, replay that log file to get
+  back to where it was, and then send a heartbeat call to all other replicas. Upon
+  receiving a heartbeat, it will contain the name of that replica that is alive again. The
+  receiver will mark that replica as being alive again.
+
+  If a replica has any RPC call that fails (including a heartbeat), that node is
+  considered dead until the next heartbeat.
+  
+Time stamps will produced by a call to time.time() and has type float:
+  it is defined as number of seconds (decimal included) since the beginning of UNIX time
