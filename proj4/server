@@ -2,6 +2,9 @@
 
 import glob
 import sys
+import logging
+logging.basicConfig(filename = '/dev/null')
+
 sys.path.append('gen-py')
 sys.path.insert(0, glob.glob('/home/yaoliu/src_code/local/lib/lib/python2.7/site-packages')[0])
 
@@ -13,10 +16,11 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from util import read_node_file, halt
+from util import read_node_file, halt, Connection
 
 
 ### Definitions
+
 
 class KeyValueStoreHandler:
     """
@@ -32,15 +36,21 @@ class KeyValueStoreHandler:
         put_key
         get_key
     '''
-    def get_key(level):
+    def get_key(self, level):
         print("get key!")
 
-    def put_key(value, level):
+    def put_key(self, value, level):
         print("put_key!")
 
-    def heartbeat(from_replica):
+    def ping(self, from_replica):
         print("got heartbeat from %s" %(from_replica))
 
+
+class AddressBook:
+    """
+    This class is used to wrap all of a nodes connection into a central lookup
+        with the idea being
+    """
 
 ### Globals
 PORT_NUM = -1
@@ -52,12 +62,6 @@ READ_REPAIR = False
 
 ### Helper functions
 
-def test_connection():
-    try:
-        transport = TSocket.TSocket(my_node.ip, my_node.port)
-        transport.open()
-    except:
-        halt("whoops")
 
 
 # halt program with optional message
@@ -105,9 +109,16 @@ def main(args):
     #server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
 
     # TODO do replaying of log here before starting the server
+    connection = Connection(my_node.ip, my_node.port)
 
-    #test_connection()
+    connection.open()
+    if connection.is_open():
+        print("The connection is open")
+    else:
+        print("The connection is not open")
 
+
+    #connection.client.ping("poop")
     print("Starting the server")
     server.serve()
 

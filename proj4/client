@@ -14,9 +14,11 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from util import read_node_file, halt, Node
+from util import read_node_file, halt, Node, Connection
 
 
+#Globals
+NODE_FILE = ""
 
 
 # prints out a usage message
@@ -25,10 +27,31 @@ def usage(prog_name):
     print(msg)
     sys.exit(1)
 
+
+def main(args):
+    global NODE_FILE
+
+    if len(args) != 2:
+        usage(args[0])
+    NODE_FILE = args[1]
+
+    node_list = read_node_file(NODE_FILE)
+    node = node_list[0]
+
+    #TODO test ping function
+    connection = Connection(node.ip, node.port)
+    connection.open()
+    if connection.is_open():
+        print("We did it")
+    else:
+        halt("can't connect")
+
+    connection.client.ping("")
+
+
 ###Main
 if __name__ == '__main__':
     args = sys.argv
-    if len(args) != 3:
-        usage(args[0])
+    main(args)
 
     

@@ -27,8 +27,6 @@ service KeyValueStore {
   // RPC used between replicas.
   // tells a replica that it is alive again
   void ping(1: string replica_name),
-
-
 }
 
 
