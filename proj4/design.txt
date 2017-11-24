@@ -37,9 +37,7 @@ How to handle node failure:
 
  
   When a server first starts up, it checks for the existence of it's corresponding log
-  file. If that file exists, we assume failure, and replay the log. After that, we try to
-  connect to everyone else. The client will run a "start" command initially to tell the
-  nodes to ping each other.
+  file. If that file exists, we assume failure, and replay the log. 
   
 Time stamps will produced by a call to time.time() and has type float:
   it is defined as number of seconds (decimal included) since the beginning of UNIX time
