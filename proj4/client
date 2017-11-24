@@ -2,6 +2,8 @@
 
 import glob
 import sys
+import logging
+logging.basicConfig(filename = '/dev/null')
 sys.path.append('gen-py')
 sys.path.insert(0, glob.glob('/home/yaoliu/src_code/local/lib/lib/python2.7/site-packages')[0])
 
@@ -15,6 +17,7 @@ from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
 from util import read_node_file, halt, Node, Connection
+from time import sleep
 
 
 #Globals
@@ -39,14 +42,22 @@ def main(args):
     node = node_list[0]
 
     #TODO test ping function
-    connection = Connection(node.ip, node.port)
+    connection = Connection(node.ip, node.port, "replica1")
     connection.open()
     if connection.is_open():
         print("We did it")
     else:
         halt("can't connect")
 
-    connection.client.ping("")
+    while True:
+        try:
+            connection.client.ping("")
+        except:
+            print("Something bad happened")
+            connection.close()
+            connection.open()
+            print(connection.is_open())
+        sleep(2)
 
 
 ###Main

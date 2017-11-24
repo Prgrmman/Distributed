@@ -36,10 +36,16 @@ class KeyValueStoreHandler:
         put_key
         get_key
     '''
-    def get_key(self, level):
+    def read(self, key, level):
+        pass
+    
+    def write(self, value, level):
+        pass
+
+    def get_key(self, key, from_replica):
         print("get key!")
 
-    def put_key(self, value, level):
+    def put_key(self, value, from_replica):
         print("put_key!")
 
     def ping(self, from_replica):
@@ -50,7 +56,13 @@ class AddressBook:
     """
     This class is used to wrap all of a nodes connection into a central lookup
         with the idea being
+
+    Attributes:
+        
+
     """
+    def __init__(self):
+        pass
 
 ### Globals
 PORT_NUM = -1
@@ -108,14 +120,6 @@ def main(args):
     server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
     #server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
 
-    # TODO do replaying of log here before starting the server
-    connection = Connection(my_node.ip, my_node.port)
-
-    connection.open()
-    if connection.is_open():
-        print("The connection is open")
-    else:
-        print("The connection is not open")
 
 
     #connection.client.ping("poop")

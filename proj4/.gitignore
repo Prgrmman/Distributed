@@ -2,3 +2,4 @@
 nodes 
 gen-py/
 *.pyc
+*.swp

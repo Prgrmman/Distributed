@@ -12,20 +12,23 @@ struct Value {
 
 
 service KeyValueStore {
-  
-  // RPC used by clients
-  Value get_key(1: i32 level)
+ 
+
+  // Client APIs
+  Value read(1: i32 key, 2: i32 level),
+  void write(1: Value value, 2: i32 level),
+
+  // Internal Replica node APIs
+  // replica_name is the name of the node sending the request
+  Value get_key(1: i32 key, 2: string from_replica)
     throws (1: SystemException systemException),
 
-  
-  // RPC used by clients
-  void put_key_value(1: Value value, 2: i32 level)
+  void put_key(1: Value value, 2: string from_replica)
     throws (1: SystemException systemException),
 
 
-
-  // RPC used between replicas.
   // tells a replica that it is alive again
+  // I might get rid of this
   void ping(1: string replica_name),
 }
 

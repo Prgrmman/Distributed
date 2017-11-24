@@ -22,11 +22,19 @@ We will be using Apache thrift for this project
 
 How to handle node failure:
   I have included a ping rpc call to the KeyValueStore service. All nodes start as
-  active. When an RPC between replicas fails, that node will be marked as down. When that
+  down. When an RPC between replicas fails, that node will be marked as down. When that
   node comes back up, it will look for its unique log file, replay that log file to get
-  back to where it was, and then send a ping call to all other replicas. Upon
-  receiving a ping, it will contain the name of the replica that is alive again. The
-  receiver will mark that replica as being alive again.
+  back to where it was.
+
+  If we are using hinted handoff:
+  When the nodes first start up, it won't contact another replica until a client wants it
+  to be a coordinator. Then it will act as coordinator. When the previously down node
+  contacts the other nodes, those nodes will send hints to that node
+
+  Question: if a node recovers that was using hinted handoffs, if it receives a hint that
+  is older than the data that it has, does it right it?? I want to say "no", but I'm not
+  entirely sure.
+
  
   When a server first starts up, it checks for the existence of it's corresponding log
   file. If that file exists, we assume failure, and replay the log. After that, we try to
