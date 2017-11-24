@@ -3,3 +3,4 @@ nodes
 gen-py/
 *.pyc
 *.swp
+logs/

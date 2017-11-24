@@ -44,3 +44,6 @@ Time stamps will produced by a call to time.time() and has type float:
 
 It is the clients responsibility to start the servers on the machine that is indicated by
 the ip address in the node_file
+
+
+

@@ -26,10 +26,6 @@ service KeyValueStore {
   void put_key(1: Value value, 2: string from_replica)
     throws (1: SystemException systemException),
 
-
-  // tells a replica that it is alive again
-  // I might get rid of this
-  void ping(1: string replica_name),
 }
 
 

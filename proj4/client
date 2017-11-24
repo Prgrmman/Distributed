@@ -24,6 +24,14 @@ from time import sleep
 NODE_FILE = ""
 
 
+#Helper functions
+
+#TODO write me
+def start_console():
+    while True:
+        command = raw_input(">> ")
+
+
 # prints out a usage message
 def usage(prog_name):
     msg = "Usage: %s node_file " % (prog_name)
@@ -41,23 +49,16 @@ def main(args):
     node_list = read_node_file(NODE_FILE)
     node = node_list[0]
 
-    #TODO test ping function
+    #TODO Testing code
     connection = Connection(node.ip, node.port, "replica1")
     connection.open()
-    if connection.is_open():
+    if connection.is_active():
         print("We did it")
     else:
         halt("can't connect")
+    #TODO end Testing code remove it
 
-    while True:
-        try:
-            connection.client.ping("")
-        except:
-            print("Something bad happened")
-            connection.close()
-            connection.open()
-            print(connection.is_open())
-        sleep(2)
+    start_console()
 
 
 ###Main

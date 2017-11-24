@@ -33,33 +33,44 @@ class Connection:
         - _transport: (TSocket.TSocket)
         - _lock: (threading.Lock)
         - _name: (string) name of replica connected to
+        - _active: (bool) True if connection is up and running
         - client: KeyValueStore.Client
         - _hints: (list of Value) a list of hints stored to be sent when the connection
             can become active again
     """
     def __init__(self, ip, port, name):
         self._name = name
+        self._hints = []
+        self._isActive = False
+
         transport = TSocket.TSocket(ip, port)
         transport = TTransport.TBufferedTransport(transport)
         self._transport = transport
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
         self.client = KeyValueStore.Client(protocol)
         self._lock = threading.Lock()
-        self._hints = []
+
 
     # returns true if the transport is open 
-    def is_open(self):
-        return self._transport.isOpen()
+    def is_active(self):
+        return self._active
 
     # try to (re)open the connection
     def open(self):
         try:
             self._transport.open()
+            self._active = True
         except:
-            pass
+            self._active = False
 
+    # close underlying transport
     def close(self):
         self._transport.close()
+        self.mark_closed()
+
+    # sets the connection as not being used
+    def mark_closed(self):
+        self._active = False
 
     # used to lock around an entire connection object
     def lock(self):
@@ -73,6 +84,10 @@ class Connection:
 
     def __eq__(self, other):
        return self._name == other._name
+
+# creates a connection object from a node
+def connection_from_node(node):
+    return Connection(node.ip, node.port, node.name)
 
 def read_node_file(file_name):
     replica_list = []

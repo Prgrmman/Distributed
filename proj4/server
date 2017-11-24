@@ -1,8 +1,14 @@
 #!/usr/bin/env python2
 
+#NOTES
+'''
+Key's must in the range 0-255. If they are not, throw an error
+'''
+
 import glob
 import sys
 import logging
+import os
 logging.basicConfig(filename = '/dev/null')
 
 sys.path.append('gen-py')
@@ -16,7 +22,7 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from util import read_node_file, halt, Connection
+from util import read_node_file, halt, connection_from_node, Connection
 
 
 ### Definitions
@@ -25,10 +31,13 @@ from util import read_node_file, halt, Connection
 class KeyValueStoreHandler:
     """
     This is the RPC class handler
+    Attributes:
+        - _data_store:
 
     """
     
     def __init__(self):
+        self._data_store = {}
         pass
 
     '''
@@ -48,21 +57,6 @@ class KeyValueStoreHandler:
     def put_key(self, value, from_replica):
         print("put_key!")
 
-    def ping(self, from_replica):
-        print("got heartbeat from %s" %(from_replica))
-
-
-class AddressBook:
-    """
-    This class is used to wrap all of a nodes connection into a central lookup
-        with the idea being
-
-    Attributes:
-        
-
-    """
-    def __init__(self):
-        pass
 
 ### Globals
 PORT_NUM = -1
@@ -70,13 +64,37 @@ NODE_NAME = ""
 NODE_FILE = ""
 HINTED_HANDOFF = False
 READ_REPAIR = False
+connetion_dict = {} # dictionary of Connection objects
 
 
 ### Helper functions
 
+def setup_connections(node_list):
+    """ setup the dictionary of Connection objects
+            node_list: (string) 
+    """
+    global connetion_dict
+    for node in node_list:
+        connetion_dict[node.name] = connection_from_node(node)
 
+#TODO write this
+def write_all():
+    """ writes to all replicas
+    """
+    pass
 
-# halt program with optional message
+#TODO write this
+def write_log():
+    """ writes key to disk file
+    """
+    pass
+
+#TODO write this
+def read_all():
+    """ reads from all replicas
+    """
+    pass
+
 
 # prints out a usage message
 def usage(prog_name):
@@ -120,7 +138,8 @@ def main(args):
     server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
     #server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
 
-
+    node_list.remove(my_node)
+    setup_connections(node_list)
 
     #connection.client.ping("poop")
     print("Starting the server")
