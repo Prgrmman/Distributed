@@ -30,8 +30,8 @@ connection = None
 #TODO write me
 def start_console():
     # Test code please remove
-    connection.client.read(0, 2)
-    connection.client.write(Value(0, "hello world", 0.99), 2)
+    connection.client.write(Value(0, "hello world", 0.99), 1)
+    connection.client.read(0, 1)
     # end test code
     while True:
         command = raw_input(">> ")

@@ -33,7 +33,6 @@ class Connection:
         - _transport: (TSocket.TSocket)
         - _lock: (threading.Lock)
         - _name: (string) name of replica connected to
-        - _active: (bool) True if connection is up and running
         - client: KeyValueStore.Client
         - _hints: (list of Value) a list of hints stored to be sent when the connection
             can become active again
@@ -60,26 +59,30 @@ class Connection:
     def open(self):
         try:
             self._transport.open()
-            self._active = True
         except:
-            self._active = False
+            pass
 
     # close underlying transport
     def close(self):
         self._transport.close()
-        self._active = False
-        self.mark_closed()
 
     # sets the connection as not being used
     def mark_failed(self):
-        self._active = False
+        self._failed = True
+
+    def is_failed(self):
+        return self._failed
 
     # used to lock around an entire connection object
     def lock(self):
-        self._lock.aquire()
+        self._lock.acquire()
     def unlock(self):
         self._lock.release()
     
+
+    def add_hint(self, value):
+        self._hints.append(value)
+
     # send out everything from _hints
     # TODO write this
     def send_hints(self):
