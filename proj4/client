@@ -52,11 +52,6 @@ def main(args):
     #TODO Testing code
     connection = connection_from_node(node)
     connection.open()
-    if connection.is_open():
-        print("We did it")
-    else:
-        halt("can't connect")
-    #TODO end Testing code remove it
 
     start_console()
 
