@@ -37,11 +37,12 @@ class Connection:
         - client: KeyValueStore.Client
         - _hints: (list of Value) a list of hints stored to be sent when the connection
             can become active again
+        - _failed: (bool) true if this connection has failed: used for hinted handoff 
     """
     def __init__(self, ip, port, name):
         self._name = name
         self._hints = []
-        self._isActive = False
+        self._failed = False
 
         transport = TSocket.TSocket(ip, port)
         transport = TTransport.TBufferedTransport(transport)
@@ -51,9 +52,9 @@ class Connection:
         self._lock = threading.Lock()
 
 
-    # returns true if the transport is open 
-    def is_active(self):
-        return self._active
+    # returns true if the transport is open
+    def is_open(self):
+        return self._transport.isOpen()
 
     # try to (re)open the connection
     def open(self):
@@ -66,10 +67,11 @@ class Connection:
     # close underlying transport
     def close(self):
         self._transport.close()
+        self._active = False
         self.mark_closed()
 
     # sets the connection as not being used
-    def mark_closed(self):
+    def mark_failed(self):
         self._active = False
 
     # used to lock around an entire connection object
@@ -79,6 +81,7 @@ class Connection:
         self._lock.release()
     
     # send out everything from _hints
+    # TODO write this
     def send_hints(self):
         pass
 

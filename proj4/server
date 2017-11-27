@@ -9,6 +9,8 @@ import glob
 import sys
 import logging
 import os
+import pdb
+import threading
 logging.basicConfig(filename = '/dev/null')
 
 sys.path.append('gen-py')
@@ -37,25 +39,61 @@ class KeyValueStoreHandler:
     """
     
     def __init__(self):
-        self._data_store = {}
+        self._data_store = 255 * [""] # array of empty strings
+        self._lock = threading.Lock() # TODO is this needed?
         pass
 
     '''
     RPC calls:
-        put_key
-        get_key
+        put_key     <- called by other replicas
+        get_key     <- called by other replicas
+        read        <- called by client
+        write       <- called by client
     '''
     def read(self, key, level):
-        pass
+        print("read!")
+        responses = read_all(key)
+        response_count = len(responses)
+        if response_count < level:
+            raise SystemException("Read request could not reach enough nodes. %d node(s) responded"
+                    %(response_count))
+
+        if READ_REPAIR:
+            read_repair(key)
+
+        return self._data_store[key]
+
+        
     
     def write(self, value, level):
-        pass
+        response_count = write_all(value)
+        if response_count < level:
+            raise SystemException("Write request could not reach enough nodes. %d node(s) responded"
+                    %(response_count))
+
+        self.local_write(value)
 
     def get_key(self, key, from_replica):
         print("get key!")
+        return self._data_store[key]
 
     def put_key(self, value, from_replica):
+        self.local_write(value)
         print("put_key!")
+
+    '''
+    Helper methods:
+        local_write
+        send_hints
+        read_repair
+    '''
+    def read_repair(self, key):
+        pass
+
+    # write to your local data store
+    def local_write(self, value):
+        write_log(value)
+        self._data_store[value.key] = value
 
 
 ### Globals
@@ -64,7 +102,7 @@ NODE_NAME = ""
 NODE_FILE = ""
 HINTED_HANDOFF = False
 READ_REPAIR = False
-connetion_dict = {} # dictionary of Connection objects
+connection_dic = {} # dictionary of Connection objects
 
 
 ### Helper functions
@@ -73,33 +111,63 @@ def setup_connections(node_list):
     """ setup the dictionary of Connection objects
             node_list: (string) 
     """
-    global connetion_dict
+    global connection_dic
     for node in node_list:
-        connetion_dict[node.name] = connection_from_node(node)
+        connection_dic[node.name] = connection_from_node(node)
 
-#TODO write this
-def write_all():
+def write_all(value):
     """ writes to all replicas
+        writes a value to all known connections
+        returns number of successful writes
     """
-    pass
+    response_count = len(connection_dic)
+    for key in connection_dic:
+        connection = connection_dic[key]
+        if not connection.is_open():
+            connection.open() # the connection may remain closed
+
+        try:
+            connection.lock()
+            connection.client.put_key(value, NODE_NAME)
+            connection.unlock()
+        except:
+            connection.mark_failed()
+            response_count -= 1
+
+    return response_count
 
 #TODO write this
-def write_log():
+def write_log(value):
     """ writes key to disk file
     """
-    pass
+    print(value)
 
-#TODO write this
-def read_all():
+def read_all(value_key):
     """ reads from all replicas
+        returns a list of value objects
     """
-    pass
+    responses = []
+    for key in connection_dic:
+        connection = connection_dic[key]
+        if not connection.is_open():
+            connection.open()
+
+        try:
+            connection.lock()
+            response = connection.client.get_key(value_key, NODE_NAME)
+            connection.unlock()
+            responses.append(response)
+        except:
+            connection.mark_failed()
+    return responses
+       
 
 
 # prints out a usage message
 def usage(prog_name):
     msg = "Usage: %s node_name node_file {--hinted-handoff | --read-repair}" % (prog_name)
     halt(msg)
+
 
 ###MAIN
 def main(args):
