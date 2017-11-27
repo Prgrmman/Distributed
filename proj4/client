@@ -52,7 +52,7 @@ def main(args):
     #TODO Testing code
     connection = connection_from_node(node)
     connection.open()
-    if connection.is_active():
+    if connection.is_open():
         print("We did it")
     else:
         halt("can't connect")
