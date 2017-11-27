@@ -132,7 +132,6 @@ def write_all(value):
             connection.client.put_key(value, NODE_NAME)
         except:
             connection.mark_failed()
-            connection.close()
             if HINTED_HANDOFF:
                 connection.add_hint(value)
             response_count -= 1

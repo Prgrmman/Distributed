@@ -51,9 +51,6 @@ class Connection:
         self._lock = threading.Lock()
 
 
-    # returns true if the transport is open
-    def is_open(self):
-        return self._transport.isOpen()
 
     # try to (re)open the connection
     def open(self):
