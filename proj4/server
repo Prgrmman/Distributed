@@ -11,6 +11,7 @@ import logging
 import os
 import pdb
 import threading
+import time
 logging.basicConfig(filename = '/dev/null')
 
 sys.path.append('gen-py')
@@ -66,7 +67,7 @@ class KeyValueStoreHandler:
         
     
     def write(self, value, level):
-        pdb.set_trace()
+        value.timestamp = time.time() # time stamp the value
         response_count = write_all(value)
         if response_count < level:
             raise SystemException("Write request could not reach enough nodes. %d node(s) responded"
@@ -85,7 +86,6 @@ class KeyValueStoreHandler:
     '''
     Helper methods:
         local_write
-        send_hints
         read_repair
     '''
     # TODO write this
@@ -125,10 +125,9 @@ def write_all(value):
     response_count = len(connection_dic)
     for key in connection_dic:
         connection = connection_dic[key]
-        if not connection.is_open():
-            connection.open() # the connection may remain closed
 
         connection.lock()
+        connection.open()
         try:
             connection.client.put_key(value, NODE_NAME)
         except:
@@ -137,6 +136,7 @@ def write_all(value):
             if HINTED_HANDOFF:
                 connection.add_hint(value)
             response_count -= 1
+        connection.close()
         connection.unlock()
 
     return response_count
@@ -155,15 +155,15 @@ def read_all(value_key):
     responses = []
     for key in connection_dic:
         connection = connection_dic[key]
-        if not connection.is_open():
-            connection.open()
 
         connection.lock()
+        connection.open()
         try:
             response = connection.client.get_key(value_key, NODE_NAME)
             responses.append(response)
         except:
             connection.mark_failed()
+        connection.close()
         connection.unlock()
 
     return responses
