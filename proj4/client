@@ -16,7 +16,7 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from util import read_node_file, halt, Node, Connection
+from util import read_node_file, halt, Node, Connection, connection_from_node
 from time import sleep
 
 
@@ -50,7 +50,7 @@ def main(args):
     node = node_list[0]
 
     #TODO Testing code
-    connection = Connection(node.ip, node.port, "replica1")
+    connection = connection_from_node(node)
     connection.open()
     if connection.is_active():
         print("We did it")
