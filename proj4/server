@@ -25,7 +25,7 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from util import read_node_file, halt, connection_from_node, Connection
+from util import read_node_file, halt, connection_from_node, Connection, make_empty_value
 
 
 ### Definitions
@@ -40,9 +40,8 @@ class KeyValueStoreHandler:
     """
     
     def __init__(self):
-        self._data_store = 255 * [""] # array of empty strings
-        self._lock = threading.Lock() # TODO is this needed?
-        pass
+        self._data_store = 255 * [make_empty_value()] # array of None
+        self._lock = threading.Lock()
 
     '''
     RPC calls:
@@ -63,8 +62,6 @@ class KeyValueStoreHandler:
             read_repair(key)
 
         return self._data_store[key]
-
-        
     
     def write(self, value, level):
         value.timestamp = time.time() # time stamp the value
@@ -77,25 +74,59 @@ class KeyValueStoreHandler:
 
     def get_key(self, key, from_replica):
         print("get key!")
+        process_incoming(from_replica)
         return self._data_store[key]
 
     def put_key(self, value, from_replica):
-        self.local_write(value)
         print("put_key!")
+        process_incoming(from_replica)
+        self.local_write(value)
 
     '''
     Helper methods:
         local_write
         read_repair
+        process_incoming
+        lock
+        unlock
+        
     '''
     # TODO write this
-    def read_repair(self, key):
-        pass
+    def read_repair(self, values):
+        # sort in order of greatest to smallest timestamp
+        values = sorted(values, key = lambda x: x.timestamp, reverse=True)
+
+        content_list = [x.content for x in values]
+
+        # if there is inconsistent data
+        if content_list[1:] != content_list[:-1]:
+            latest_value = values[0]
+            write_all(latest_value)
+            self.local_write(latest_value)
+
+    # handles incoming connections 
+    def process_incoming(self, from_replica):
+        connection = connection_dic[from_replica]
+        if HINTED_HANDOFF and connection.is_failed():
+            connection.send_hints(NODE_NAME)
 
     # write to your local data store
+    # never write older data
     def local_write(self, value):
-        write_log(value)
-        self._data_store[value.key] = value
+        self.lock()
+       
+        old_value = self._data_store[value.key]
+        if old_value.timestamp <= value.timestamp:
+            write_log(value)
+            self._data_store[value.key] = value
+
+        self.unlock()
+
+    def lock(self):
+        self._lock.acquire()
+
+    def unlock(self):
+        self._lock.release()
 
 
 ### Globals
@@ -108,6 +139,7 @@ connection_dic = {} # dictionary of Connection objects
 
 
 ### Helper functions
+
 
 def setup_connections(node_list):
     """ setup the dictionary of Connection objects
@@ -215,7 +247,6 @@ def main(args):
     node_list.remove(my_node)
     setup_connections(node_list)
 
-    #connection.client.ping("poop")
     print("Starting the server")
     server.serve()
 

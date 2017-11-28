@@ -81,9 +81,28 @@ class Connection:
         self._hints.append(value)
 
     # send out everything from _hints
-    # TODO write this
-    def send_hints(self):
-        pass
+    def send_hints(self, from_node):
+        success = True # assume that this will work
+
+        self.lock()
+        self.open()
+
+        for value in self._hints:
+            try:
+                self.client.put_key(value, from_node)
+            except:
+                self.mark_failed()
+                success = False
+                break
+
+        self.close()
+        self.unlock()
+
+        # clear the hints on success
+        if success:
+            self._hints = [] 
+            self._failed = False
+
 
     def __eq__(self, other):
        return self._name == other._name
@@ -91,6 +110,10 @@ class Connection:
 # creates a connection object from a node
 def connection_from_node(node):
     return Connection(node.ip, node.port, node.name)
+
+# returns an dummy value object
+def make_empty_value():
+    return Value(0, "", 0.0)
 
 def read_node_file(file_name):
     replica_list = []
