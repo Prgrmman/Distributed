@@ -11,6 +11,7 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 from store import KeyValueStore
+from store.ttypes import Value
 
 class Node:
     def __init__(self, name, ip, port):
@@ -95,14 +96,14 @@ class Connection:
                 success = False
                 break
 
-        self.close()
-        self.unlock()
 
         # clear the hints on success
         if success:
             self._hints = [] 
             self._failed = False
 
+        self.close()
+        self.unlock()
 
     def __eq__(self, other):
        return self._name == other._name
@@ -112,8 +113,8 @@ def connection_from_node(node):
     return Connection(node.ip, node.port, node.name)
 
 # returns an dummy value object
-def make_empty_value():
-    return Value(0, "", 0.0)
+def value_from_string(string):
+    return Value(0, string, 0.0)
 
 def read_node_file(file_name):
     replica_list = []

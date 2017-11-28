@@ -25,7 +25,7 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from util import read_node_file, halt, connection_from_node, Connection, make_empty_value
+from util import read_node_file, halt, connection_from_node, Connection, value_from_string
 
 
 ### Definitions
@@ -40,7 +40,7 @@ class KeyValueStoreHandler:
     """
     
     def __init__(self):
-        self._data_store = 255 * [make_empty_value()] # array of None
+        self._data_store = 255 * [value_from_string("")] # array of useless values
         self._lock = threading.Lock()
 
     '''
@@ -52,16 +52,32 @@ class KeyValueStoreHandler:
     '''
     def read(self, key, level):
         print("read!")
-        responses = read_all(key)
-        response_count = len(responses)
-        if response_count < level:
-            raise SystemException("Read request could not reach enough nodes. %d node(s) responded"
-                    %(response_count))
+
+        def most_recent_value(values):
+            return sorted(values, key = lambda x: x.timestamp, reverse=True)[0]
+
 
         if READ_REPAIR:
-            read_repair(key)
+            responses = read_all(key)
+            response_count = len(responses)
+            if response_count < level:
+                raise SystemException("Read request could not reach enough nodes. %d node(s) responded"
+                        %(response_count))
+            # run potential read repair in the background
+            threading.Thread(target = self.read_repair, args = (responses,)).start()
+            value = most_recent_value(responses[:level])
+            return value
 
-        return self._data_store[key]
+        #otherwise
+        else:
+            responses = read_n_replicas(key, level)
+            response_count = len(responses)
+            if response_count < level:
+                raise SystemException("Read request could not reach enough nodes. %d node(s) responded"
+                        %(response_count))
+            value = most_recent_value(responses)
+            return value
+
     
     def write(self, value, level):
         value.timestamp = time.time() # time stamp the value
@@ -70,17 +86,22 @@ class KeyValueStoreHandler:
             raise SystemException("Write request could not reach enough nodes. %d node(s) responded"
                     %(response_count))
 
+        self.lock()
         self.local_write(value)
+        self.unlock()
 
     def get_key(self, key, from_replica):
+        self.process_incoming(from_replica)
         print("get key!")
-        process_incoming(from_replica)
         return self._data_store[key]
 
     def put_key(self, value, from_replica):
+        self.process_incoming(from_replica)
         print("put_key!")
-        process_incoming(from_replica)
+
+        self.lock()
         self.local_write(value)
+        self.unlock()
 
     '''
     Helper methods:
@@ -101,8 +122,10 @@ class KeyValueStoreHandler:
         # if there is inconsistent data
         if content_list[1:] != content_list[:-1]:
             latest_value = values[0]
-            write_all(latest_value)
+            self.lock()
+            write_all(latest_value) # TODO need more locking maybe?
             self.local_write(latest_value)
+            self.unlock()
 
     # handles incoming connections 
     def process_incoming(self, from_replica):
@@ -113,14 +136,12 @@ class KeyValueStoreHandler:
     # write to your local data store
     # never write older data
     def local_write(self, value):
-        self.lock()
        
         old_value = self._data_store[value.key]
         if old_value.timestamp <= value.timestamp:
             write_log(value)
             self._data_store[value.key] = value
 
-        self.unlock()
 
     def lock(self):
         self._lock.acquire()
@@ -162,7 +183,8 @@ def write_all(value):
         connection.open()
         try:
             connection.client.put_key(value, NODE_NAME)
-        except:
+        except Exception as ex:
+            print(ex)
             connection.mark_failed()
             if HINTED_HANDOFF:
                 connection.add_hint(value)
@@ -179,12 +201,23 @@ def write_log(value):
     """
     print(value)
 
+
+# read from all replicas
 def read_all(value_key):
+    n = len(connection_dic)
+    return read_n_replicas(value_key, n)
+
+# reads from n replicas
+def read_n_replicas(value_key, n):
     """ reads from all replicas
         returns a list of value objects
     """
     responses = []
+    count = 0
     for key in connection_dic:
+        # if we have enough responses, stop
+        if count == n:
+            break
         connection = connection_dic[key]
 
         connection.lock()
@@ -192,8 +225,10 @@ def read_all(value_key):
         try:
             response = connection.client.get_key(value_key, NODE_NAME)
             responses.append(response)
+            count += 1
         except:
             connection.mark_failed()
+
         connection.close()
         connection.unlock()
 
@@ -209,7 +244,7 @@ def usage(prog_name):
 
 ###MAIN
 def main(args):
-    global NODE_NAME, NODE_FILE
+    global NODE_NAME, NODE_FILE, HINTED_HANDOFF, READ_REPAIR
 
     if len(args) != 4:
         usage(args[0])

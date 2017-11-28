@@ -3,6 +3,7 @@
 import glob
 import sys
 import logging
+import pdb
 logging.basicConfig(filename = '/dev/null')
 sys.path.append('gen-py')
 sys.path.insert(0, glob.glob('/home/yaoliu/src_code/local/lib/lib/python2.7/site-packages')[0])
@@ -58,7 +59,10 @@ def main(args):
     connection = connection_from_node(node)
     connection.open()
 
-    start_console()
+    try:
+        start_console()
+    except KeyboardInterrupt:
+        pdb.set_trace()
 
 
 ###Main
