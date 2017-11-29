@@ -21,7 +21,11 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from util import read_node_file, halt, connection_from_node, Connection, value_from_string, async
+# TODO remove this
+#from util import read_node_file, halt, connection_from_node, Connection, value_from_string, async
+from util import read_node_file, halt, connection_from_node, Connection, value_from_string
+from sync import async, synchronize
+
 
 
 ### Definitions
@@ -79,9 +83,7 @@ class KeyValueStoreHandler:
             raise SystemException("Write request could not reach enough nodes. %d node(s) responded"
                     %(response_count))
 
-        self.lock()
         self.local_write(value)
-        self.unlock()
 
     def get_key(self, key, from_replica):
         self.process_incoming(from_replica)
@@ -92,9 +94,7 @@ class KeyValueStoreHandler:
         self.process_incoming(from_replica)
         print("put_key!")
 
-        self.lock()
         self.local_write(value)
-        self.unlock()
     '''
     Helper methods:
         local_write
@@ -130,6 +130,7 @@ class KeyValueStoreHandler:
 
     # write to your local data store
     # never write older data
+    @synchronize
     def local_write(self, value):
        
         old_value = self._data_store[value.key]
@@ -176,17 +177,14 @@ def write_all(value):
     for key in connection_dic:
         connection = connection_dic[key]
 
-        connection.lock()
-        connection.open()
-        try:
-            connection.client.put_key(value, NODE_NAME)
-        except Exception as ex:
-            connection.mark_failed()
-            if HINTED_HANDOFF:
-                connection.add_hint(value)
-            response_count -= 1
-        connection.close()
-        connection.unlock()
+        with connection:
+            try:
+                connection.client.put_key(value, NODE_NAME)
+            except Exception as ex:
+                connection.mark_failed()
+                if HINTED_HANDOFF:
+                    connection.add_hint(value)
+                response_count -= 1
 
     return response_count
 
@@ -216,18 +214,13 @@ def read_n_replicas(value_key, n):
             break
         connection = connection_dic[key]
 
-        connection.lock()
-        connection.open()
-        try:
-            response = connection.client.get_key(value_key, NODE_NAME)
-            responses.append(response)
-            count += 1
-        except:
-            connection.mark_failed()
-
-        connection.close()
-        connection.unlock()
-
+        with connection:
+            try:
+                response = connection.client.get_key(value_key, NODE_NAME)
+                responses.append(response)
+                count += 1
+            except:
+                connection.mark_failed()
     return responses
        
 

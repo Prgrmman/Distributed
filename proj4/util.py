@@ -51,7 +51,14 @@ class Connection:
         self.client = KeyValueStore.Client(protocol)
         self._lock = threading.Lock()
 
+    # context manager code
+    def __enter__(self):
+        self.lock()
+        self.open()
 
+    def __exit__(self, *args):
+        self.close()
+        self.unlock()
 
     # try to (re)open the connection
     def open(self):
@@ -85,25 +92,20 @@ class Connection:
     def send_hints(self, from_node):
         success = True # assume that this will work
 
-        self.lock()
-        self.open()
+        with self: # using the current connection
+            for value in self._hints:
+                try:
+                    self.client.put_key(value, from_node)
+                except:
+                    self.mark_failed()
+                    success = False
+                    break
 
-        for value in self._hints:
-            try:
-                self.client.put_key(value, from_node)
-            except:
-                self.mark_failed()
-                success = False
-                break
+            # clear the hints on success
+            if success:
+                self._hints = [] 
+                self._failed = False
 
-
-        # clear the hints on success
-        if success:
-            self._hints = [] 
-            self._failed = False
-
-        self.close()
-        self.unlock()
 
     def __eq__(self, other):
        return self._name == other._name
@@ -127,12 +129,6 @@ def read_node_file(file_name):
             replica_list.append(Node(words[0], words[1], int(words[2])))
     return replica_list
 
-# run function and don't wait for it to return
-def async(function):
-    def wrap(*args):
-        arg_tuple = tuple([arg for arg in args])
-        threading.Thread(target=function, args = arg_tuple).start()
-    return wrap
 
 # halts program with optional message
 def halt(msg=None):
