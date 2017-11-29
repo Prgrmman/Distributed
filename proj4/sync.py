@@ -14,7 +14,7 @@ def async(function):
 
 def synchronize(function):
     """
-    Function decorator to be used to sync function calls
+    Function decorator to be used to sync function calls between threads
     """
     lock = threading.Lock()
 
@@ -23,25 +23,3 @@ def synchronize(function):
         with lock:
             return function(*args, **kwargs)
     return wrap
-
-
-
-# TEST CODE
-if __name__ == '__main__':
-    from time import sleep
-    @synchronize
-    def safe_count():
-        for i in range(10):
-            sleep(0.2)
-            print(i)
-        print("done")
-
-    @async
-    def background(f):
-        f()
-
-    # Test 1
-    print("begin test1")
-    background(safe_count)
-    background(safe_count)
-    print("end test1")

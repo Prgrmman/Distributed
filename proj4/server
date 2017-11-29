@@ -6,7 +6,6 @@ import sys
 import logging
 import os
 import pdb
-import threading
 import time
 logging.basicConfig(filename = '/dev/null')
 
@@ -40,7 +39,6 @@ class KeyValueStoreHandler:
     """
     def __init__(self):
         self._data_store = 255 * [value_from_string("")] # array of useless values
-        self._lock = threading.Lock()
     '''
     RPC calls:
         put_key     <- called by other replicas
@@ -57,31 +55,24 @@ class KeyValueStoreHandler:
         if READ_REPAIR:
             responses = read_all(key)
             response_count = len(responses)
-            if response_count < level:
-                raise SystemException("Read request could not reach enough nodes. %d node(s) responded"
-                        %(response_count))
+            check_responses(response_count, level, self.read)
             # run potential read repair in the background
             self.read_repair(responses)
             value = most_recent_value(responses[:level])
-            return value
 
         #otherwise
         else:
             responses = read_n_replicas(key, level)
             response_count = len(responses)
-            if response_count < level:
-                raise SystemException("Read request could not reach enough nodes. %d node(s) responded"
-                        %(response_count))
+            check_responses(response_count , level, self.read)
             value = most_recent_value(responses)
-            return value
 
+        return value
     
     def write(self, value, level):
         value.timestamp = time.time() # time stamp the value
         response_count = write_all(value)
-        if response_count < level:
-            raise SystemException("Write request could not reach enough nodes. %d node(s) responded"
-                    %(response_count))
+        check_responses(response_count, level, self.write)
 
         self.local_write(value)
 
@@ -101,25 +92,21 @@ class KeyValueStoreHandler:
         read_repair
         process_incoming
         check_responses
-        lock
-        unlock
-        
     '''
+
     @async
+    @synchronize
     def read_repair(self, values):
         # sort in order of greatest to smallest timestamp
         values = sorted(values, key = lambda x: x.timestamp, reverse=True)
-        print("read repair")
 
         content_list = [x.content for x in values]
 
         # if there is inconsistent data
         if content_list[1:] != content_list[:-1]:
             latest_value = values[0]
-            self.lock()
             write_all(latest_value) 
             self.local_write(latest_value)
-            self.unlock()
 
 
     # handles incoming connections 
@@ -127,6 +114,8 @@ class KeyValueStoreHandler:
         connection = connection_dic[from_replica]
         if HINTED_HANDOFF and connection.is_failed():
             connection.send_hints(NODE_NAME)
+
+
 
     # write to your local data store
     # never write older data
@@ -137,13 +126,6 @@ class KeyValueStoreHandler:
         if old_value.timestamp <= value.timestamp:
             write_log(value)
             self._data_store[value.key] = value
-
-
-    def lock(self):
-        self._lock.acquire()
-
-    def unlock(self):
-        self._lock.release()
 
 
 ### Globals
@@ -223,6 +205,11 @@ def read_n_replicas(value_key, n):
                 connection.mark_failed()
     return responses
        
+# make sure enough nodes responded
+def check_responses(response_count, expected_count, function):
+    if response_count < expected_count:
+        raise SystemException("%s request could not reach enough nodes. %d node(s) responded"
+                %(function.__name__, response_count))
 
 
 # prints out a usage message
