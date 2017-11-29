@@ -114,9 +114,9 @@ class Connection:
 def connection_from_node(node):
     return Connection(node.ip, node.port, node.name)
 
-# returns an dummy value object
-def value_from_string(string):
-    return Value(0, string, 0.0)
+# returns a value object
+def value_from_string(string, key=-1):
+    return Value(key, string, 0.0)
 
 def read_node_file(file_name):
     replica_list = []
