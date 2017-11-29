@@ -1,9 +1,5 @@
 #!/usr/bin/env python2
 
-#NOTES
-'''
-Key's must in the range 0-255. If they are not, throw an error
-'''
 
 import glob
 import sys
@@ -25,7 +21,7 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-from util import read_node_file, halt, connection_from_node, Connection, value_from_string
+from util import read_node_file, halt, connection_from_node, Connection, value_from_string, async
 
 
 ### Definitions
@@ -38,11 +34,9 @@ class KeyValueStoreHandler:
         - _data_store:
 
     """
-    
     def __init__(self):
         self._data_store = 255 * [value_from_string("")] # array of useless values
         self._lock = threading.Lock()
-
     '''
     RPC calls:
         put_key     <- called by other replicas
@@ -56,7 +50,6 @@ class KeyValueStoreHandler:
         def most_recent_value(values):
             return sorted(values, key = lambda x: x.timestamp, reverse=True)[0]
 
-
         if READ_REPAIR:
             responses = read_all(key)
             response_count = len(responses)
@@ -64,7 +57,7 @@ class KeyValueStoreHandler:
                 raise SystemException("Read request could not reach enough nodes. %d node(s) responded"
                         %(response_count))
             # run potential read repair in the background
-            threading.Thread(target = self.read_repair, args = (responses,)).start()
+            self.read_repair(responses)
             value = most_recent_value(responses[:level])
             return value
 
@@ -102,20 +95,21 @@ class KeyValueStoreHandler:
         self.lock()
         self.local_write(value)
         self.unlock()
-
     '''
     Helper methods:
         local_write
         read_repair
         process_incoming
+        check_responses
         lock
         unlock
         
     '''
-    # TODO write this
+    @async
     def read_repair(self, values):
         # sort in order of greatest to smallest timestamp
         values = sorted(values, key = lambda x: x.timestamp, reverse=True)
+        print("read repair")
 
         content_list = [x.content for x in values]
 
@@ -123,9 +117,10 @@ class KeyValueStoreHandler:
         if content_list[1:] != content_list[:-1]:
             latest_value = values[0]
             self.lock()
-            write_all(latest_value) # TODO need more locking maybe?
+            write_all(latest_value) 
             self.local_write(latest_value)
             self.unlock()
+
 
     # handles incoming connections 
     def process_incoming(self, from_replica):
@@ -162,6 +157,7 @@ connection_dic = {} # dictionary of Connection objects
 ### Helper functions
 
 
+
 def setup_connections(node_list):
     """ setup the dictionary of Connection objects
             node_list: (string) 
@@ -170,6 +166,7 @@ def setup_connections(node_list):
     for node in node_list:
         connection_dic[node.name] = connection_from_node(node)
 
+#TODO make this async to some extent
 def write_all(value):
     """ writes to all replicas
         writes a value to all known connections
@@ -184,7 +181,6 @@ def write_all(value):
         try:
             connection.client.put_key(value, NODE_NAME)
         except Exception as ex:
-            print(ex)
             connection.mark_failed()
             if HINTED_HANDOFF:
                 connection.add_hint(value)
@@ -199,7 +195,7 @@ def write_all(value):
 def write_log(value):
     """ writes key to disk file
     """
-    print(value)
+    pass
 
 
 # read from all replicas
@@ -282,6 +278,7 @@ def main(args):
     node_list.remove(my_node)
     setup_connections(node_list)
 
+    #TODO do recovery if appropriate
     print("Starting the server")
     server.serve()
 

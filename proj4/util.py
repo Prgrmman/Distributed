@@ -127,6 +127,13 @@ def read_node_file(file_name):
             replica_list.append(Node(words[0], words[1], int(words[2])))
     return replica_list
 
+# run function and don't wait for it to return
+def async(function):
+    def wrap(*args):
+        arg_tuple = tuple([arg for arg in args])
+        threading.Thread(target=function, args = arg_tuple).start()
+    return wrap
+
 # halts program with optional message
 def halt(msg=None):
     if msg:
