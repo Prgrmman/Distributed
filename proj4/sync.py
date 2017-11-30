@@ -16,7 +16,7 @@ def synchronize(function):
     """
     Function decorator to be used to sync function calls between threads
     """
-    lock = threading.Lock()
+    lock = threading.RLock()
 
     @functools.wraps(function)
     def wrap(*args, **kwargs):
@@ -41,7 +41,6 @@ if __name__ == '__main__':
     
     while len(count_list) != 200:
         sleep(0.1)
-    print(count_list)
     if count_list == range(100) * 2:
         print("Pass")
     else:
