@@ -23,3 +23,29 @@ def synchronize(function):
         with lock:
             return function(*args, **kwargs)
     return wrap
+
+if __name__ == '__main__':
+    from time import sleep
+    
+    count_list = []
+
+    @async
+    @synchronize
+    def counter():
+        for i in range(100):
+            count_list.append(i)
+            sleep(0.001)
+
+    counter()
+    counter()
+    
+    while len(count_list) != 200:
+        sleep(0.1)
+    print(count_list)
+    if count_list == range(100) * 2:
+        print("Pass")
+    else:
+        print("Fail")
+
+
+
