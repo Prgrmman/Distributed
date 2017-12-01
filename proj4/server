@@ -38,7 +38,7 @@ class KeyValueStoreHandler:
 
     """
     def __init__(self):
-        self._data_store = 255 * [value_from_string("")] # array of useless values
+        self._data_store = 256 * [value_from_string("")] # array of useless values
     '''
     RPC calls:
         put_key     <- called by other replicas
