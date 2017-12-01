@@ -1,0 +1,31 @@
+#!/usr/bin/env python
+
+from util import connection_from_node, Node, read_node_file, halt
+import sys
+import os
+
+
+def usuage(prog_name):
+    msg = "Usage: %s node_file {--hinted-handoff | --read-repair}" % (prog_name)
+    halt(msg)
+
+
+def start_node(node_name, node_file, option):
+    command = "./server %s %s %s &" %(node_name, node_file, option)
+    os.system(command)
+
+
+def main(args):
+    if len(args) != 3:
+        usuage(args[0])
+
+    option = args[2] # read repair or hinted handoff
+    file = args[1]
+    node_list = read_node_file(file)
+
+    # now we fire up each replica server
+    for node in node_list:
+        start_node(node.name, file, option)
+
+if __name__ == "__main__":
+    main(sys.argv)
