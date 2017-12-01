@@ -70,6 +70,7 @@ class KeyValueStoreHandler:
         return value
     
     def write(self, value, level):
+        #how does this write without a key
         value.timestamp = time.time() # time stamp the value
         response_count = write_all(value)
         check_responses(response_count, level, self.write)
@@ -124,7 +125,7 @@ class KeyValueStoreHandler:
        
         old_value = self._data_store[value.key]
         if old_value.timestamp <= value.timestamp:
-            write_log(value)
+            write_log(value, self.name)
             self._data_store[value.key] = value
 
 
@@ -172,9 +173,24 @@ def write_all(value):
 
 
 #TODO write this
-def write_log(value):
+#think this needs to take name for file naming convention
+def write_log(value, name):
     """ writes key to disk file
     """
+    filename = "disk_" + name
+
+    try:
+        f = open(filename, "a+")
+    except IOError:
+        #wait this should create
+        print "Not there"
+
+    #cant use space here woops
+    string = str(value.key) + " " + value.content + " " + str(value.timestamp) + "\n"
+    f.write(string)
+
+    f.close()
+
     pass
 
 
@@ -259,7 +275,20 @@ def main(args):
     setup_connections(node_list)
 
     #TODO do recovery if appropriate
+    #Might be wrong which node is current replica
     print("Starting the server")
+    filename = "disk_" + my_node.name
+    try:
+        #if this exsists indicates recovery
+        f = open(filename, "r")
+        for line in f:
+            #split using new delim
+            myList = line.split()
+            val = value_from_string(myList[1], int(myList[0]))
+            val.timestamp = float(myList[2])
+            pass
+    except IOError:
+        #file doesnt exist so no need to recover
     server.serve()
 
 if __name__ == '__main__':

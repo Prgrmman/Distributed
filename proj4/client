@@ -27,10 +27,65 @@ NODE_FILE = ""
 #Helper functions
 
 #TODO write me
-def start_console():
+def start_console(node_list):
+    for n in node_list:
+        print n
+
+    name = raw_input("Please enter the name of the replica you would like to be coordinator:")
+    for n in node_list:
+        if n.name == name:
+            node = n
+            break
+
+    #TODO Testing code
+    connection = connection_from_node(node)
+    connection.open()
+
     while True:
         command = raw_input(">> ")
-
+        myList = command.split()
+        if not myList:
+            continue
+        if myList[0] == "get":
+            try:
+                key = int(myList[1])
+                if myList[2] == "ONE":
+                    level = 1
+                elif myList[2] == "TWO":
+                    level = 2
+                else:
+                    print "Invalid level"
+                    continue
+                if key > -1 and key < 256:
+                    #get some value from key
+                    val = connection.client.read(key, level)
+                    #print val?
+                    pass
+                else:
+                    print "Key value out of range 0 to 255 please."
+            except (ValueError, IndexError) as err:
+                print "Invalid input"
+                pass
+        elif myList[0] == "put":
+            try:
+                key = int(myList[1])
+                val = myList[2]
+                if key > -1 and key < 256:
+                    #put
+                    val1 = value_from_string(val, key)
+                    connection.client.write(val1, level)
+                    pass
+                else:
+                    print "Key value out of range 0 to 255 please."
+            except (ValueError, IndexError) as err:
+                print "Invalid Input"
+                pass
+        elif myList[0] == "Quit":
+            print "Thank you enjoy"
+            break
+        else:
+            print "I do not recognize that command please try again."
+			
 
 # prints out a usage message
 def usage(prog_name):
@@ -47,13 +102,8 @@ def main(args):
     NODE_FILE = args[1]
 
     node_list = read_node_file(NODE_FILE)
-    node = node_list[0]
-
-    #TODO Testing code
-    connection = connection_from_node(node)
-    connection.open()
-
-    start_console()
+	
+    start_console(node_list)
 
 
 ###Main
