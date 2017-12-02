@@ -125,7 +125,7 @@ class KeyValueStoreHandler:
        
         old_value = self._data_store[value.key]
         if old_value.timestamp <= value.timestamp:
-            write_log(value, self.name)
+            write_log(value)
             self._data_store[value.key] = value
 
 
@@ -174,10 +174,10 @@ def write_all(value):
 
 #TODO write this
 #think this needs to take name for file naming convention
-def write_log(value, name):
+def write_log(value):
     """ writes key to disk file
     """
-    filename = "disk_" + name
+    filename = "disk_" + NODE_NAME
 
     try:
         f = open(filename, "a+")
@@ -186,14 +186,48 @@ def write_log(value, name):
         print "Not there"
 
     #cant use space here woops
-    string = str(value.key) + " " + value.content + " " + str(value.timestamp) + "\n"
+    string = str(value.key) + "\n" + value.content + "\n" + str(value.timestamp) + "\n" + " " + "\n"
     f.write(string)
 
     f.close()
 
     pass
 
-
+# replays data store from disk log
+def replay_log(_data_store):
+    #Might be wrong which node is current replica
+    content = ""
+    timestamp = -1.0
+    key = -1
+    print("Starting the server")
+    filename = "disk_" + NODE_NAME
+    try:
+        #if this exists indicates recovery
+        f = open(filename, "r")
+        i = 0
+        for line in f:
+            #split using new delim
+            if line == " \n":
+                i = 0
+            else:
+                if i == 0:
+                    key = int(line)
+                elif i == 1:
+                    #should I truncate the '\n'
+                    content = line
+                    content = content[:-1]
+                elif i == 2:
+                    timestamp = float(line)
+                else:
+                    print "Uh Oh"
+                i += 1
+                val = value_from_string(content, key)
+                val.timestamp = float(timestamp)
+                _data_store[val.key] = val
+    except IOError:
+        #file doesnt exist so no need to recover
+        return    
+ 
 # read from all replicas
 def read_all(value_key):
     n = len(connection_dic)
@@ -258,7 +292,7 @@ def main(args):
     except IndexError:
         halt("no such node name <%s> in file <%s>" %(NODE_NAME, NODE_FILE))
 
-    print(my_node)
+    #print(my_node)
     PORT_NUM = my_node.port
 
     handler = KeyValueStoreHandler()
@@ -275,21 +309,7 @@ def main(args):
     setup_connections(node_list)
 
     #TODO do recovery if appropriate
-    #Might be wrong which node is current replica
-    print("Starting the server")
-    filename = "disk_" + my_node.name
-    try:
-        #if this exsists indicates recovery
-        f = open(filename, "r")
-        for line in f:
-            #split using new delim
-            myList = line.split()
-            val = value_from_string(myList[1], int(myList[0]))
-            val.timestamp = float(myList[2])
-            pass
-    except IOError:
-        #file doesnt exist so no need to recover
-        pass
+    replay_log(handler._data_store)
     server.serve()
 
 if __name__ == '__main__':
