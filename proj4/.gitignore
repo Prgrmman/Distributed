@@ -4,3 +4,4 @@ gen-py/
 *.pyc
 *.swp
 logs/
+disk_replica*

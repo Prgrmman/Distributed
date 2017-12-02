@@ -25,6 +25,8 @@ from thrift.server import TServer
 from util import read_node_file, halt, connection_from_node, Connection, value_from_string
 from sync import async, synchronize
 
+from random import shuffle
+
 
 
 ### Definitions
@@ -57,6 +59,7 @@ class KeyValueStoreHandler:
             response_count = len(responses)
             check_responses(response_count, level, self.read)
             # run potential read repair in the background
+            responses.append(self._data_store[key])
             self.read_repair(responses)
             value = most_recent_value(responses[:level])
 
@@ -124,7 +127,7 @@ class KeyValueStoreHandler:
     def local_write(self, value):
        
         old_value = self._data_store[value.key]
-        if old_value.timestamp <= value.timestamp:
+        if old_value.timestamp < value.timestamp:
             write_log(value)
             self._data_store[value.key] = value
 
@@ -240,7 +243,9 @@ def read_n_replicas(value_key, n):
     """
     responses = []
     count = 0
-    for key in connection_dic:
+    keys = connection_dic.keys()[:]
+    shuffle(keys)
+    for key in keys:
         # if we have enough responses, stop
         if count == n:
             break
