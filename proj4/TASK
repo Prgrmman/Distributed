@@ -1,0 +1,12 @@
+Task list:
+
+Jonathan:
+- Thrift and RPC design
+- backend logic (hinted handoff and read repair)
+- Function Verification Testing
+
+Sean:
+
+- Front end client
+- Log file design, writing and recovery
+- Functional Verification Testing
