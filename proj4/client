@@ -29,6 +29,7 @@ NODE_FILE = ""
 #TODO write me
 def start_console(node_list):
     keepGoing = True
+    connection = connection_from_node(node_list[0])
     while keepGoing:
         for n in node_list:
             print n
@@ -40,13 +41,17 @@ def start_console(node_list):
                 if n.name == name:
                     node = n
                     badInput = False
+            
             if badInput:
                 print "That replica name does not exist, please try again."
 
-        #TODO Testing code
-        connection = connection_from_node(node)
-        connection.open()
-
+            if not badInput:
+                connection = connection_from_node(node)
+                connection.open()
+                if not connection.is_open():
+                    print "That Node is unreachable"
+                    badInput = True 
+            
         while True:
             command = raw_input(">> ")
             myList = command.split()
@@ -64,8 +69,11 @@ def start_console(node_list):
                         continue
                     if key > -1 and key < 256:
                         #get some value from key
-                        val = connection.client.read(key, level)
-                        print val.content 
+                        try:
+                            val = connection.client.read(key, level)
+                            print val.content
+                        except SystemException:
+                            print "Consistency Level can not be reached" 
                     else:
                         print "Key value out of range 0 to 255 please."
                 except (ValueError, IndexError) as err:
@@ -89,8 +97,11 @@ def start_console(node_list):
 
                     if key > -1 and key < 256:
                         #put
-                        val1 = value_from_string(val, key)
-                        connection.client.write(val1, level)
+                        try:
+                            val1 = value_from_string(val, key)
+                            connection.client.write(val1, level)
+                        except SystemException:
+                            print "Consistency Level can not be reached"
                         pass
                     else:
                         print "Key value out of range 0 to 255 please."
