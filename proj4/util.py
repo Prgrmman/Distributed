@@ -67,6 +67,9 @@ class Connection:
         except:
             pass
 
+    # returns if the transport layer is open or not
+    def is_open(self):
+        return self._transport.isOpen()
     # close underlying transport
     def close(self):
         self._transport.close()
