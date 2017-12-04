@@ -118,6 +118,11 @@ def start_console(node_list):
             else:
                 print "I do not recognize that command please try again."
 
+
+def exit():
+    print "\nThank you. Exiting"
+    sys.exit(0)
+
 # prints out a usage message
 def usage(prog_name):
     msg = "Usage: %s node_file " % (prog_name)
@@ -134,7 +139,10 @@ def main(args):
 
     node_list = read_node_file(NODE_FILE)
     
-    start_console(node_list)
+    try:
+        start_console(node_list)
+    except(KeyboardInterrupt, EOFError):
+        exit()
 
 
 ###Main
