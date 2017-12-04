@@ -39,6 +39,9 @@ Usage: ./init node_file {--hinted-handoff | --read-repair}
 NOTE: the init script will start all of the replica servers on the same machine. If this
   is not the desired behavior, do not use the script
 
+If you want to clear the state of the servers, then delete the disk_replica files that will
+  be created as part of each replicas persistent log
+
 
 ------------------------------| Starting the client |------------------------------
 
