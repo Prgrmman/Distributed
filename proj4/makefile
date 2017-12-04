@@ -8,3 +8,4 @@ all:
 clean:
 	rm *.pyc -f
 	rm -rf gen-py
+	rm -f disk_replica*

@@ -9,6 +9,10 @@ you are not garunteed recovery. This is because the coordinator may not contact
 the node that has its hints when it contacts the other replicas. However, a write
 (put) request will contact all nodes, so that is a better thing to use when testing
 
+To build the code, type "make"
+
+"make clean" will restore the project to a clean state
+
 ------------------------------| Starting the servers |------------------------------
 
 Usage: ./server node_name node_file {--hinted-handoff | --read-repair}
