@@ -26,14 +26,13 @@ NODE_FILE = ""
 
 #Helper functions
 
-#TODO write me
 def start_console(node_list):
     keepGoing = True
     connection = connection_from_node(node_list[0])
     while keepGoing:
         for n in node_list:
             print n
-        
+
         badInput = True
         while badInput:
             name = raw_input("Please enter the name of the replica you would like to be coordinator:")
@@ -41,7 +40,7 @@ def start_console(node_list):
                 if n.name == name:
                     node = n
                     badInput = False
-            
+
             if badInput:
                 print "That replica name does not exist, please try again."
 
@@ -50,8 +49,8 @@ def start_console(node_list):
                 connection.open()
                 if not connection.is_open():
                     print "That Node is unreachable"
-                    badInput = True 
-            
+                    badInput = True
+
         while True:
             command = raw_input(">> ")
             myList = command.split()
@@ -73,7 +72,7 @@ def start_console(node_list):
                             val = connection.client.read(key, level)
                             print val.content
                         except SystemException:
-                            print "Consistency Level can not be reached" 
+                            print "Consistency Level can not be reached"
                     else:
                         print "Key value out of range 0 to 255 please."
                 except (ValueError, IndexError) as err:
@@ -138,7 +137,7 @@ def main(args):
     NODE_FILE = args[1]
 
     node_list = read_node_file(NODE_FILE)
-    
+
     try:
         start_console(node_list)
     except(KeyboardInterrupt, EOFError):
@@ -150,4 +149,4 @@ if __name__ == '__main__':
     args = sys.argv
     main(args)
 
-    
+

@@ -37,7 +37,7 @@ class Connection:
         - client: KeyValueStore.Client
         - _hints: (list of Value) a list of hints stored to be sent when the connection
             can become active again
-        - _failed: (bool) true if this connection has failed: used for hinted handoff 
+        - _failed: (bool) true if this connection has failed: used for hinted handoff
     """
     def __init__(self, ip, port, name):
         self._name = name
@@ -86,7 +86,7 @@ class Connection:
         self._lock.acquire()
     def unlock(self):
         self._lock.release()
-    
+
 
     def add_hint(self, value):
         self._hints.append(value)
@@ -106,7 +106,7 @@ class Connection:
 
             # clear the hints on success
             if success:
-                self._hints = [] 
+                self._hints = []
                 self._failed = False
 
 

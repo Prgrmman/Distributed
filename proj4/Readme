@@ -1,1 +1,100 @@
-This is the readme file yipee
+README file by Jonathan and Sean.
+
+------------------------------| Notes to graders |------------------------------
+when testing hinted handoff:
+let's say you a node is down and misses some of the writes from the coordinator.
+That coordinator, of course, will store a hint for that down node. Now that down
+node becomes a coordinator. If you do a "get" operation using that new client,
+you are not garunteed recovery. This is because the coordinator may not contact
+the node that has its hints when it contacts the other replicas. However, a write
+(put) request will contact all nodes, so that is a better thing to use when testing
+
+------------------------------| Starting the servers |------------------------------
+
+Usage: ./server node_name node_file {--hinted-handoff | --read-repair}
+
+Start the server as node_name using the given node_file
+
+Example:
+
+>>> example_node_file
+...
+replica1 128.226.180.168 8170
+replica2 128.226.180.168 8171
+replica3 128.226.180.168 8172
+replica4 128.226.180.168 8173
+...
+
+the format for each line is "name address port"
+
+./server replica1 example_node_file --hinted-handoff
+  => Starts server "replica1" using hinted handoff
+
+NOTE: 128.226.180.168 is the ip address of remote06. It it the users responsibility to
+start the node on the correct remote machine corresponding to the node file used
+
+
+We have included an init script to start up all of the servers on the node_file
+Usage: ./init node_file {--hinted-handoff | --read-repair}
+NOTE: the init script will start all of the replica servers on the same machine. If this
+  is not the desired behavior, do not use the script
+
+
+------------------------------| Starting the client |------------------------------
+
+Usage: ./client node_file
+
+Start the client on the same node_file used to construct the servers
+
+How to use the client:
+Here is an example of the cleint running:
+...
+Node
+name: replica1
+ip: 128.226.180.168
+port: 7270
+
+Node
+name: replica2
+ip: 128.226.180.168
+port: 7271
+
+Node
+name: replica3
+ip: 128.226.180.168
+port: 7272
+
+Node
+name: replica4
+ip: 128.226.180.168
+port: 7273
+
+Please enter the name of the replica you would like to be coordinator:replica4
+>> put 0 This is the content of what I will be storing TWO
+>> get 0
+Invalid input
+>> get 0 ONE
+This is the content of what I will be storing
+>>
+...
+
+The client supports the "put" and "get" operations.
+Below is the syntax:
+
+>> put 0 This is the content of what I will be storing TWO
+   ^   ^ ^                                             ^
+   1   2 3                                             4
+
+1: command
+2: key (unsigned int between 0-255)
+3: content (string)
+4: Consistency level (ONE or TWO)
+
+
+>> get 0 ONE
+   ^   ^ ^
+   1   2 3
+
+1: command
+2: key
+3: Consistency level

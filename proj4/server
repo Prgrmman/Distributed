@@ -20,8 +20,6 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 
-# TODO remove this
-#from util import read_node_file, halt, connection_from_node, Connection, value_from_string, async
 from util import read_node_file, halt, connection_from_node, Connection, value_from_string
 from sync import async, synchronize
 
@@ -49,7 +47,6 @@ class KeyValueStoreHandler:
         write       <- called by client
     '''
     def read(self, key, level):
-        print("read!")
 
         def most_recent_value(values):
             return sorted(values, key = lambda x: x.timestamp, reverse=True)[0]
@@ -71,7 +68,7 @@ class KeyValueStoreHandler:
             value = most_recent_value(responses)
 
         return value
-    
+
     def write(self, value, level):
         #how does this write without a key
         value.timestamp = time.time() # time stamp the value
@@ -82,12 +79,10 @@ class KeyValueStoreHandler:
 
     def get_key(self, key, from_replica):
         self.process_incoming(from_replica)
-        print("get key!")
         return self._data_store[key]
 
     def put_key(self, value, from_replica):
         self.process_incoming(from_replica)
-        print("put_key!")
 
         self.local_write(value)
     '''
@@ -109,11 +104,11 @@ class KeyValueStoreHandler:
         # if there is inconsistent data
         if content_list[1:] != content_list[:-1]:
             latest_value = values[0]
-            write_all(latest_value) 
+            write_all(latest_value)
             self.local_write(latest_value)
 
 
-    # handles incoming connections 
+    # handles incoming connections
     def process_incoming(self, from_replica):
         connection = connection_dic[from_replica]
         if HINTED_HANDOFF and connection.is_failed():
@@ -125,7 +120,7 @@ class KeyValueStoreHandler:
     # never write older data
     @synchronize
     def local_write(self, value):
-       
+
         old_value = self._data_store[value.key]
         if old_value.timestamp < value.timestamp:
             write_log(value)
@@ -147,13 +142,12 @@ connection_dic = {} # dictionary of Connection objects
 
 def setup_connections(node_list):
     """ setup the dictionary of Connection objects
-            node_list: (string) 
+            node_list: (string)
     """
     global connection_dic
     for node in node_list:
         connection_dic[node.name] = connection_from_node(node)
 
-#TODO make this async to some extent
 def write_all(value):
     """ writes to all replicas
         writes a value to all known connections
@@ -175,8 +169,6 @@ def write_all(value):
     return response_count
 
 
-#TODO write this
-#think this needs to take name for file naming convention
 def write_log(value):
     """ writes key to disk file
     """
@@ -229,8 +221,8 @@ def replay_log(_data_store):
                 _data_store[val.key] = val
     except IOError:
         #file doesnt exist so no need to recover
-        return    
- 
+        return
+
 # read from all replicas
 def read_all(value_key):
     n = len(connection_dic)
@@ -259,7 +251,7 @@ def read_n_replicas(value_key, n):
             except:
                 connection.mark_failed()
     return responses
-       
+
 # make sure enough nodes responded
 def check_responses(response_count, expected_count, function):
     if response_count < expected_count:
@@ -282,9 +274,9 @@ def main(args):
 
     NODE_NAME = args[1]
     NODE_FILE = args[2]
-    if args[3] == "--hinted-handoff": 
+    if args[3] == "--hinted-handoff":
         HINTED_HANDOFF = True
-    elif args[3] == "--read-repair": 
+    elif args[3] == "--read-repair":
         READ_REPAIR = True
     else:
         halt("error, must give either --hinted-handoff or --read-repair")
@@ -306,18 +298,17 @@ def main(args):
     tfactory = TTransport.TBufferedTransportFactory()
     pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
-    #NOTE we are using a threaded server for now
+    #NOTE we are using a threaded server
     server = TServer.TThreadedServer(processor, transport, tfactory, pfactory)
     #server = TServer.TSimpleServer(processor, transport, tfactory, pfactory)
 
     node_list.remove(my_node)
     setup_connections(node_list)
 
-    #TODO do recovery if appropriate
     replay_log(handler._data_store)
     server.serve()
 
 if __name__ == '__main__':
     main(sys.argv)
 
-    
+
